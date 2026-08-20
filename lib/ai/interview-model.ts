@@ -1,5 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 
 /**
  * The only file in the app that talks to Anthropic directly. Everything
@@ -8,9 +10,30 @@ import Anthropic from "@anthropic-ai/sdk";
  */
 
 const MODEL = "claude-opus-4-8";
-const MAX_TOKENS = 500;
+// Generous headroom over what the conversational text itself needs - the
+// structured-output JSON wrapper (field names, escaping) adds overhead on
+// top of the message content, and a truncated response fails to parse.
+const MAX_TOKENS = 1024;
 const OPENING_CUE =
   "[Begin the interview with your opening question now.]";
+
+const InterviewTurnSchema = z.object({
+  message: z
+    .string()
+    .describe(
+      "What you say to the leader next - a question, follow-up, or closing remark. This is the ONLY field the leader ever sees."
+    ),
+  leaderWantsToStop: z
+    .boolean()
+    .describe(
+      "True only if the leader's last message clearly asked to end the whole interview, not just declined to elaborate on the current question. See system prompt for the distinction."
+    ),
+});
+
+export type InterviewTurnOutput = {
+  message: string;
+  leaderWantsToStop: boolean;
+};
 
 export type FramingDimension = {
   key: string;
@@ -41,21 +64,28 @@ export type InterviewTurnInput = {
 
 export async function getNextInterviewTurn(
   input: InterviewTurnInput
-): Promise<string> {
+): Promise<InterviewTurnOutput> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  const response = await client.messages.create({
+  const response = await client.messages.parse({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: buildSystemPrompt(input),
     messages: buildMessages(input.conversation),
+    output_config: {
+      format: zodOutputFormat(InterviewTurnSchema),
+    },
   });
 
-  const textBlock = response.content.find((block) => block.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("Unexpected response shape from the interview model.");
+  if (!response.parsed_output) {
+    throw new Error(
+      "Failed to parse structured output from the interview model."
+    );
   }
-  return textBlock.text.trim();
+  return {
+    message: response.parsed_output.message.trim(),
+    leaderWantsToStop: response.parsed_output.leaderWantsToStop,
+  };
 }
 
 function buildMessages(
@@ -132,5 +162,11 @@ ${pacingLines.join("\n")}
 
 ## Ending the interview
 
-The session will end automatically, on the server side, once the maximum number of questions is reached or the time limit expires — you do not need to announce this, count down, or manage it yourself. If the pacing information above tells you this is your last permitted question, or you judge from the time remaining that this is very likely your last exchange, end warmly instead: thank the leader for their time and candour, and do not start a new substantive question. Keep any closing remark brief.`;
+The session will end automatically, on the server side, once the maximum number of questions is reached or the time limit expires — you do not need to announce this, count down, or manage it yourself. If the pacing information above tells you this is your last permitted question, or you judge from the time remaining that this is very likely your last exchange, end warmly instead: thank the leader for their time and candour, and do not start a new substantive question. Keep any closing remark brief.
+
+## Ending early if the leader wants to stop
+
+Independently of the pacing above, every response you give includes a "leaderWantsToStop" field. Set it to true only if the leader's most recent message clearly indicates they want to end the interview altogether — for example "let's wrap this up", "I need to go", "I don't want to continue", or an explicit request to stop. When you set it to true, make "message" a brief, warm closing remark thanking them, with no new question.
+
+Do NOT set it to true just because an answer was short, vague, or the leader said something like "I don't have anything else to add" about the current question specifically — that means move on from this question, not end the interview. When in doubt, set it to false and continue normally.`;
 }

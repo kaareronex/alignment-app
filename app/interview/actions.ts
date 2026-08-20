@@ -214,7 +214,7 @@ export async function advanceInterview(
     string
   >;
 
-  const nextQuestion = await getNextInterviewTurn({
+  const turn = await getNextInterviewTurn({
     strategyContext: project.strategy_context ?? "",
     sessionPurpose: project.session_purpose ?? "",
     framingDimensions: FRAMING_DIMENSIONS.map((d) => ({
@@ -237,7 +237,7 @@ export async function advanceInterview(
     .insert({
       session_id: sessionId,
       sender: "assistant",
-      content: nextQuestion,
+      content: turn.message,
       question_number: newQuestionNumber,
     });
   if (insertQuestionError) throw new Error(insertQuestionError.message);
@@ -251,11 +251,23 @@ export async function advanceInterview(
   if (!session.started_at) {
     sessionUpdate.started_at = new Date().toISOString();
   }
+  // The model can also end the session voluntarily, when it judges the
+  // leader has clearly asked to stop - checked deterministically here via
+  // a structured field, never inferred from the message text. This is on
+  // top of, not instead of, the hard stops above: those still fire first
+  // and don't depend on this flag at all.
+  if (turn.leaderWantsToStop) {
+    sessionUpdate.status = "completed";
+    sessionUpdate.ended_at = new Date().toISOString();
+  }
   const { error: updateSessionError } = await supabase
     .from("sessions")
     .update(sessionUpdate)
     .eq("id", sessionId);
   if (updateSessionError) throw new Error(updateSessionError.message);
 
-  return { status: "question", message: nextQuestion };
+  if (turn.leaderWantsToStop) {
+    return { status: "completed" };
+  }
+  return { status: "question", message: turn.message };
 }
