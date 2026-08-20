@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import InterviewConversation from "./interview-conversation";
 
 type Props = {
   projectId: string;
@@ -96,13 +97,13 @@ export default function SessionView({
   }
 
   return (
-    <div className="space-y-2">
-      <h1 className="text-2xl font-semibold">Interview starting…</h1>
+    <div className="space-y-4">
       {remainingMs !== null && (
-        <p className="text-neutral-600">
+        <p className="text-sm text-neutral-500">
           Time remaining: {formatRemaining(remainingMs)}
         </p>
       )}
+      <InterviewConversation projectId={projectId} />
     </div>
   );
 }
