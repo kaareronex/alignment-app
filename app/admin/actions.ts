@@ -129,6 +129,24 @@ export async function saveProject(
   return { leaders: freshLeaders ?? [] };
 }
 
+export async function updateProjectStatus(
+  projectId: string,
+  status: "draft" | "active" | "closed"
+) {
+  await requireAdminSession();
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ status })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/${projectId}`);
+  revalidatePath(`/admin/${projectId}/status`);
+  revalidatePath("/admin");
+}
+
 export async function startProjectTimer(projectId: string) {
   await requireAdminSession();
 

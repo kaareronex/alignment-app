@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import StartTimerButton from "./start-timer-button";
+import ProjectStatusControl from "./project-status-control";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export default async function ProjectStatusPage({
   const supabase = createAdminClient();
   const { data: project, error } = await supabase
     .from("projects")
-    .select("id, name, access_mode, timer_status, timer_started_at")
+    .select("id, name, status, access_mode, timer_status, timer_started_at")
     .eq("id", projectId)
     .maybeSingle();
 
@@ -30,6 +31,8 @@ export default async function ProjectStatusPage({
         &larr; Back to project
       </Link>
       <h1 className="text-2xl font-semibold">{project.name} — Status</h1>
+
+      <ProjectStatusControl projectId={project.id} status={project.status} />
 
       {project.access_mode === "open" ? (
         <p className="text-neutral-600">
