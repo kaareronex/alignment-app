@@ -142,6 +142,13 @@ export default function ProjectEditForm({
 
       <div>
         <h2 className="mb-2 text-lg font-medium">Framing definitions</h2>
+        <p className="mb-4 text-sm text-neutral-500">
+          These definitions aren&apos;t shown to leaders directly — they
+          guide the AI interviewer&apos;s judgement about what counts as
+          disagreement, out-of-scope, importance, and success when it
+          generates follow-up questions and later builds the synthesis.
+          Rewrite them freely to match this organisation&apos;s context.
+        </p>
         <div className="space-y-4">
           {FRAMING_DIMENSIONS.map((dim) => (
             <div key={dim.key}>
@@ -239,7 +246,7 @@ export default function ProjectEditForm({
               />
               <input
                 type="text"
-                placeholder="Role (e.g. Direktør, Salg)"
+                placeholder="Role (e.g. Sales Director)"
                 value={row.role_label}
                 onChange={(e) =>
                   updateLeaderRow(i, { role_label: e.target.value })

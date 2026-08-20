@@ -27,9 +27,8 @@ export async function createProject() {
   redirect(`/admin/${data.id}`);
 }
 
-export async function deleteProject(formData: FormData) {
-  const projectId = formData.get("projectId");
-  if (typeof projectId !== "string" || !projectId) {
+export async function deleteProject(projectId: string) {
+  if (!projectId) {
     throw new Error("Missing projectId");
   }
 

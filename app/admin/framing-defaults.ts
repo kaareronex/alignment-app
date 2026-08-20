@@ -1,17 +1,17 @@
 export const FRAMING_DIMENSIONS = [
-  { key: "uenighed", label: "Uenighed" },
-  { key: "ikke_vores_bord", label: "Ikke vores bord" },
-  { key: "vigtigt", label: "Vigtigt" },
-  { key: "lykkedes", label: "Lykkedes" },
+  { key: "uenighed", label: "Disagreement" },
+  { key: "ikke_vores_bord", label: "Out of scope" },
+  { key: "vigtigt", label: "Important" },
+  { key: "lykkedes", label: "Success" },
 ] as const;
 
 export const DEFAULT_FRAMING_DEFINITIONS: Record<string, string> = {
   uenighed:
-    "Områder hvor lederne reelt er uenige om retning, prioritering eller fortolkning — ikke blot forskellig sprogbrug om det samme.",
+    "Areas where the leaders genuinely disagree on direction, priority, or interpretation — not just different wording for the same thing.",
   ikke_vores_bord:
-    "Emner eller beslutninger der ligger uden for denne ledergruppes mandat — noget andre (fx bestyrelsen eller en anden afdeling) skal tage stilling til.",
+    "Topics or decisions outside this leadership team's mandate — something for others (e.g. the board or another department) to decide.",
   vigtigt:
-    "Det som har størst betydning for om strategien lykkes — det der bør prioriteres højst, uanset hvor svært det er at adressere.",
+    "What matters most to whether the strategy succeeds — what should be prioritised highest, regardless of how hard it is to address.",
   lykkedes:
-    "Hvordan det ser ud, når strategien er implementeret succesfuldt — de konkrete tegn på at målet er nået.",
+    "What it looks like when the strategy has been implemented successfully — the concrete signs that the goal has been reached.",
 };
