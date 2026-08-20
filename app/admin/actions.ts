@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdminSession } from "@/lib/admin-session";
+import { broadcastProjectTimerStarted } from "@/lib/realtime-broadcast";
 import { DEFAULT_FRAMING_DEFINITIONS } from "./framing-defaults";
 import type { Leader } from "./types";
 
@@ -126,4 +127,20 @@ export async function saveProject(
   revalidatePath("/admin");
 
   return { leaders: freshLeaders ?? [] };
+}
+
+export async function startProjectTimer(projectId: string) {
+  await requireAdminSession();
+
+  const startedAt = new Date().toISOString();
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ timer_status: "running", timer_started_at: startedAt })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+
+  await broadcastProjectTimerStarted(projectId, startedAt);
+
+  revalidatePath(`/admin/${projectId}/status`);
 }

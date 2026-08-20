@@ -33,9 +33,17 @@ export default async function ProjectPage({
       <Link href="/admin" className="text-sm text-neutral-500 hover:underline">
         &larr; Back to projects
       </Link>
-      <h1 className="mb-6 mt-2 text-2xl font-semibold">
-        {(project as Project).name || "Untitled project"}
-      </h1>
+      <div className="mb-6 mt-2 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">
+          {(project as Project).name || "Untitled project"}
+        </h1>
+        <Link
+          href={`/admin/${projectId}/status`}
+          className="text-sm text-neutral-500 hover:underline"
+        >
+          View status →
+        </Link>
+      </div>
       <ProjectEditForm
         project={project as Project}
         leaders={(leaders ?? []) as Leader[]}
