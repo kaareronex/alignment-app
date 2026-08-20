@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "alignment-app-dev",
+      "runtimeExecutable": "C:\\dev\\alignment-app\\.claude\\dev-server.bat",
+      "runtimeArgs": [],
+      "port": 3000
+    }
+  ]
+}
