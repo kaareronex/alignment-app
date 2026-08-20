@@ -3,10 +3,13 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
+import { requireAdminSession } from "@/lib/admin-session";
 import { DEFAULT_FRAMING_DEFINITIONS } from "./framing-defaults";
 import type { Leader } from "./types";
 
 export async function createProject() {
+  await requireAdminSession();
+
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("projects")
@@ -28,6 +31,8 @@ export async function createProject() {
 }
 
 export async function deleteProject(projectId: string) {
+  await requireAdminSession();
+
   if (!projectId) {
     throw new Error("Missing projectId");
   }
@@ -59,6 +64,8 @@ export async function saveProject(
   projectId: string,
   input: SaveProjectInput
 ): Promise<{ leaders: Leader[] }> {
+  await requireAdminSession();
+
   const supabase = createAdminClient();
 
   const { error: projectError } = await supabase

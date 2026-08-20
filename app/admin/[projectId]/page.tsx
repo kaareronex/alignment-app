@@ -29,7 +29,7 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <>
       <Link href="/admin" className="text-sm text-neutral-500 hover:underline">
         &larr; Back to projects
       </Link>
@@ -40,6 +40,6 @@ export default async function ProjectPage({
         project={project as Project}
         leaders={(leaders ?? []) as Leader[]}
       />
-    </main>
+    </>
   );
 }

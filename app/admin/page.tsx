@@ -15,7 +15,7 @@ export default async function AdminPage() {
   if (error) throw new Error(error.message);
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
+    <>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Projects</h1>
         <form action={createProject}>
@@ -51,6 +51,6 @@ export default async function AdminPage() {
           ))}
         </ul>
       )}
-    </main>
+    </>
   );
 }

@@ -23,6 +23,7 @@ This project requires a `.env.local` file (never committed — see `.gitignore`)
 - `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon/public key. Safe to expose to the browser; RLS restricts what it can actually do (see `supabase/migrations/`).
 - `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key. **Server-only secret** — bypasses RLS entirely. Never prefix with `NEXT_PUBLIC_`, never import `lib/supabase/server.ts` from client components. Used by `lib/supabase/server.ts` for admin operations (server components / route handlers only).
+- `ADMIN_SESSION_SECRET` — random secret used to sign the `/admin` login session cookie (see `lib/admin-session.ts`). **Server-only secret.** Generate a fresh one per environment, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Rotating it invalidates all existing admin sessions.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
