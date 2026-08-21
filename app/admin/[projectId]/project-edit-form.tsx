@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { saveProject } from "../actions";
-import { FRAMING_DIMENSIONS } from "../framing-defaults";
+import {
+  MIN_DIMENSIONS,
+  MAX_DIMENSIONS,
+  type FramingDimension,
+} from "../framing-defaults";
 import type { Leader, Project } from "../types";
 
 type LeaderRow = { id: string | null; name: string; role_label: string };
@@ -27,9 +31,9 @@ export default function ProjectEditForm({
   const [sessionPurpose, setSessionPurpose] = useState(
     project.session_purpose ?? ""
   );
-  const [framingDefinitions, setFramingDefinitions] = useState<
-    Record<string, string>
-  >(project.framing_definitions ?? {});
+  const [dimensions, setDimensions] = useState<FramingDimension[]>(
+    project.framing_definitions ?? []
+  );
   const [maxQuestions, setMaxQuestions] = useState(project.max_questions);
   const [accessMode, setAccessMode] = useState<"lobby" | "open">(
     project.access_mode
@@ -66,6 +70,36 @@ export default function ProjectEditForm({
     });
   }
 
+  function updateDimension(index: number, patch: Partial<FramingDimension>) {
+    setDimensions((rows) =>
+      rows.map((row, i) => (i === index ? { ...row, ...patch } : row))
+    );
+  }
+
+  function addDimension() {
+    setDimensions((rows) =>
+      rows.length >= MAX_DIMENSIONS
+        ? rows
+        : [...rows, { id: crypto.randomUUID(), label: "", description: "" }]
+    );
+  }
+
+  function removeDimension(index: number) {
+    setDimensions((rows) =>
+      rows.length <= MIN_DIMENSIONS ? rows : rows.filter((_, i) => i !== index)
+    );
+  }
+
+  function moveDimension(index: number, direction: -1 | 1) {
+    setDimensions((rows) => {
+      const target = index + direction;
+      if (target < 0 || target >= rows.length) return rows;
+      const next = [...rows];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -77,7 +111,7 @@ export default function ProjectEditForm({
           name,
           strategy_context: strategyContext,
           session_purpose: sessionPurpose,
-          framing_definitions: framingDefinitions,
+          framing_definitions: dimensions,
           max_questions: maxQuestions,
           access_mode: accessMode,
           time_limit_enabled: timeLimitEnabled,
@@ -141,34 +175,81 @@ export default function ProjectEditForm({
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-medium">Framing definitions</h2>
+        <h2 className="mb-2 text-lg font-medium">Framing dimensions</h2>
         <p className="mb-4 text-sm text-neutral-500">
           These definitions aren&apos;t shown to leaders directly — they
           guide the AI interviewer&apos;s judgement about what counts as
-          disagreement, out-of-scope, importance, and success when it
-          generates follow-up questions and later builds the synthesis.
-          Rewrite them freely to match this organisation&apos;s context.
+          each dimension when it generates follow-up questions and later
+          builds the synthesis. Rename these to fit how you want the AI to
+          frame its questions — for example, replace &quot;Disagreement&quot;
+          with &quot;How people really feel about the strategy&quot; if that
+          fits your context better. You can also add, remove, and reorder
+          dimensions (between {MIN_DIMENSIONS} and {MAX_DIMENSIONS}).
         </p>
         <div className="space-y-4">
-          {FRAMING_DIMENSIONS.map((dim) => (
-            <div key={dim.key}>
-              <label className="mb-1 block text-sm font-medium">
-                {dim.label}
-              </label>
+          {dimensions.map((dim, i) => (
+            <div
+              key={dim.id}
+              className="space-y-2 rounded border border-neutral-200 p-3"
+            >
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => moveDimension(i, -1)}
+                  disabled={i === 0}
+                  className="px-1 text-sm text-neutral-500 disabled:opacity-30"
+                  aria-label="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveDimension(i, 1)}
+                  disabled={i === dimensions.length - 1}
+                  className="px-1 text-sm text-neutral-500 disabled:opacity-30"
+                  aria-label="Move down"
+                >
+                  ↓
+                </button>
+                <input
+                  type="text"
+                  value={dim.label}
+                  onChange={(e) =>
+                    updateDimension(i, { label: e.target.value })
+                  }
+                  placeholder="Label"
+                  required
+                  className="flex-1 rounded border border-neutral-300 p-2 font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeDimension(i)}
+                  disabled={dimensions.length <= MIN_DIMENSIONS}
+                  className="px-2 py-2 text-sm text-red-600 hover:underline disabled:opacity-30 disabled:no-underline"
+                >
+                  Remove
+                </button>
+              </div>
               <textarea
                 rows={3}
-                value={framingDefinitions[dim.key] ?? ""}
+                value={dim.description}
                 onChange={(e) =>
-                  setFramingDefinitions((prev) => ({
-                    ...prev,
-                    [dim.key]: e.target.value,
-                  }))
+                  updateDimension(i, { description: e.target.value })
                 }
+                placeholder="Description"
                 className="w-full rounded border border-neutral-300 p-2"
               />
             </div>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={addDimension}
+          disabled={dimensions.length >= MAX_DIMENSIONS}
+          className="mt-3 text-sm underline disabled:opacity-30 disabled:no-underline"
+        >
+          + Add dimension
+        </button>
       </div>
 
       <div>

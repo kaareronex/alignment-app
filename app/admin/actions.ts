@@ -5,7 +5,12 @@ import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdminSession } from "@/lib/admin-session";
 import { broadcastProjectTimerStarted } from "@/lib/realtime-broadcast";
-import { DEFAULT_FRAMING_DEFINITIONS } from "./framing-defaults";
+import {
+  DEFAULT_FRAMING_DIMENSIONS,
+  MIN_DIMENSIONS,
+  MAX_DIMENSIONS,
+  type FramingDimension,
+} from "./framing-defaults";
 import type { Leader } from "./types";
 
 export async function createProject() {
@@ -17,7 +22,7 @@ export async function createProject() {
     .insert({
       name: "New project",
       status: "draft",
-      framing_definitions: DEFAULT_FRAMING_DEFINITIONS,
+      framing_definitions: DEFAULT_FRAMING_DIMENSIONS,
       max_questions: 8,
       access_mode: "lobby",
       time_limit_enabled: false,
@@ -52,7 +57,7 @@ type SaveProjectInput = {
   name: string;
   strategy_context: string;
   session_purpose: string;
-  framing_definitions: Record<string, string>;
+  framing_definitions: FramingDimension[];
   max_questions: number;
   access_mode: "lobby" | "open";
   time_limit_enabled: boolean;
@@ -66,6 +71,15 @@ export async function saveProject(
   input: SaveProjectInput
 ): Promise<{ leaders: Leader[] }> {
   await requireAdminSession();
+
+  if (
+    input.framing_definitions.length < MIN_DIMENSIONS ||
+    input.framing_definitions.length > MAX_DIMENSIONS
+  ) {
+    throw new Error(
+      `A project must have between ${MIN_DIMENSIONS} and ${MAX_DIMENSIONS} framing dimensions.`
+    );
+  }
 
   const supabase = createAdminClient();
 

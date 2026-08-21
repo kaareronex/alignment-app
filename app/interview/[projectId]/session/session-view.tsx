@@ -12,6 +12,7 @@ type Props = {
   timeLimitEnabled: boolean;
   timeLimitMinutes: number | null;
   sessionStartedAt: string | null;
+  dimensionIds: string[];
 };
 
 function formatRemaining(ms: number) {
@@ -29,6 +30,7 @@ export default function SessionView({
   timeLimitEnabled,
   timeLimitMinutes,
   sessionStartedAt,
+  dimensionIds,
 }: Props) {
   const [timerStatus, setTimerStatus] = useState(initialTimerStatus);
   const [timerStartedAt, setTimerStartedAt] = useState(initialTimerStartedAt);
@@ -103,7 +105,7 @@ export default function SessionView({
           Time remaining: {formatRemaining(remainingMs)}
         </p>
       )}
-      <InterviewConversation projectId={projectId} />
+      <InterviewConversation projectId={projectId} dimensionIds={dimensionIds} />
     </div>
   );
 }

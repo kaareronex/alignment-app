@@ -7,7 +7,7 @@ import {
   getInterviewSessionId,
 } from "@/lib/interview-session-cookie";
 import { getNextInterviewTurn } from "@/lib/ai/interview-model";
-import { FRAMING_DIMENSIONS } from "@/app/admin/framing-defaults";
+import type { FramingDimension } from "@/app/admin/framing-defaults";
 
 export type StartSessionResult =
   | { error: string; alreadyCompleted?: false }
@@ -81,8 +81,18 @@ export async function startInterviewSession(
 }
 
 export type InterviewTurnResponse =
-  | { status: "question"; message: string }
+  | { status: "question"; message: string; touchedDimensionIds: string[] }
   | { status: "completed" };
+
+function computeTouchedDimensionIds(
+  messages: { dimension_id: string | null }[]
+): string[] {
+  const ids = new Set<string>();
+  for (const m of messages) {
+    if (m.dimension_id) ids.add(m.dimension_id);
+  }
+  return Array.from(ids);
+}
 
 /**
  * Advances the interview by one turn: records the leader's answer to the
@@ -135,7 +145,7 @@ export async function advanceInterview(
 
   const { data: existingMessages, error: messagesError } = await supabase
     .from("messages")
-    .select("sender, content, question_number")
+    .select("sender, content, question_number, dimension_id")
     .eq("session_id", sessionId)
     .order("created_at", { ascending: true });
   if (messagesError) throw new Error(messagesError.message);
@@ -163,7 +173,11 @@ export async function advanceInterview(
       .filter((m) => m.sender === "assistant")
       .at(-1);
     if (lastQuestion) {
-      return { status: "question", message: lastQuestion.content };
+      return {
+        status: "question",
+        message: lastQuestion.content,
+        touchedDimensionIds: computeTouchedDimensionIds(existingMessages ?? []),
+      };
     }
   }
 
@@ -202,26 +216,24 @@ export async function advanceInterview(
   if (hardStopByCount || hardStopByTime) {
     const { error: endError } = await supabase
       .from("sessions")
-      .update({ status: "completed", ended_at: new Date().toISOString() })
+      .update({
+        status: "completed",
+        ended_at: new Date().toISOString(),
+        ended_reason: hardStopByCount ? "max_questions" : "time_limit",
+      })
       .eq("id", sessionId);
     if (endError) throw new Error(endError.message);
     return { status: "completed" };
   }
 
   const isFinalQuestion = questionsAskedSoFar + 1 >= project.max_questions;
-  const framingDefinitions = (project.framing_definitions ?? {}) as Record<
-    string,
-    string
-  >;
+  const framingDimensions = (project.framing_definitions ??
+    []) as FramingDimension[];
 
   const turn = await getNextInterviewTurn({
     strategyContext: project.strategy_context ?? "",
     sessionPurpose: project.session_purpose ?? "",
-    framingDimensions: FRAMING_DIMENSIONS.map((d) => ({
-      key: d.key,
-      label: d.label,
-      definition: framingDefinitions[d.key] ?? "",
-    })),
+    framingDimensions,
     leaderName: leader.name,
     leaderRoleLabel: leader.role_label,
     conversation,
@@ -239,6 +251,7 @@ export async function advanceInterview(
       sender: "assistant",
       content: turn.message,
       question_number: newQuestionNumber,
+      dimension_id: turn.dimensionAddressed,
     });
   if (insertQuestionError) throw new Error(insertQuestionError.message);
 
@@ -259,6 +272,7 @@ export async function advanceInterview(
   if (turn.leaderWantsToStop) {
     sessionUpdate.status = "completed";
     sessionUpdate.ended_at = new Date().toISOString();
+    sessionUpdate.ended_reason = "model_signal";
   }
   const { error: updateSessionError } = await supabase
     .from("sessions")
@@ -269,5 +283,47 @@ export async function advanceInterview(
   if (turn.leaderWantsToStop) {
     return { status: "completed" };
   }
-  return { status: "question", message: turn.message };
+
+  const touchedDimensionIds = computeTouchedDimensionIds([
+    ...(existingMessages ?? []),
+    { dimension_id: turn.dimensionAddressed },
+  ]);
+
+  return { status: "question", message: turn.message, touchedDimensionIds };
+}
+
+/** The leader clicking "End interview early" - a hard stop just like the
+ * count/time ones, distinguished only by ended_reason for later reporting. */
+export async function endInterviewEarly(
+  projectId: string
+): Promise<{ status: "completed" }> {
+  const sessionId = await getInterviewSessionId(projectId);
+  if (!sessionId) {
+    throw new Error("No interview session found for this browser.");
+  }
+
+  const supabase = createAdminClient();
+  const { data: session, error: sessionError } = await supabase
+    .from("sessions")
+    .select("id, project_id, status")
+    .eq("id", sessionId)
+    .maybeSingle();
+  if (sessionError) throw new Error(sessionError.message);
+  if (!session || session.project_id !== projectId) {
+    throw new Error("Interview session not found.");
+  }
+
+  if (session.status !== "completed") {
+    const { error } = await supabase
+      .from("sessions")
+      .update({
+        status: "completed",
+        ended_at: new Date().toISOString(),
+        ended_reason: "leader_early_exit",
+      })
+      .eq("id", sessionId);
+    if (error) throw new Error(error.message);
+  }
+
+  return { status: "completed" };
 }

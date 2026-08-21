@@ -17,28 +17,10 @@ const MAX_TOKENS = 1024;
 const OPENING_CUE =
   "[Begin the interview with your opening question now.]";
 
-const InterviewTurnSchema = z.object({
-  message: z
-    .string()
-    .describe(
-      "What you say to the leader next - a question, follow-up, or closing remark. This is the ONLY field the leader ever sees."
-    ),
-  leaderWantsToStop: z
-    .boolean()
-    .describe(
-      "True only if the leader's last message clearly asked to end the whole interview, not just declined to elaborate on the current question. See system prompt for the distinction."
-    ),
-});
-
-export type InterviewTurnOutput = {
-  message: string;
-  leaderWantsToStop: boolean;
-};
-
 export type FramingDimension = {
-  key: string;
+  id: string;
   label: string;
-  definition: string;
+  description: string;
 };
 
 export type ConversationMessage = {
@@ -62,6 +44,37 @@ export type InterviewTurnInput = {
   timeRemainingSeconds: number | null;
 };
 
+export type InterviewTurnOutput = {
+  message: string;
+  leaderWantsToStop: boolean;
+  /** Id of the dimension this exchange primarily addressed, or null. */
+  dimensionAddressed: string | null;
+};
+
+function buildInterviewTurnSchema(dimensions: FramingDimension[]) {
+  const ids = dimensions.map((d) => d.id) as [string, ...string[]];
+  const legend = dimensions.map((d) => `"${d.id}" (${d.label})`).join(", ");
+
+  return z.object({
+    message: z
+      .string()
+      .describe(
+        "What you say to the leader next - a question, follow-up, or closing remark. This is the ONLY field the leader ever sees."
+      ),
+    leaderWantsToStop: z
+      .boolean()
+      .describe(
+        "True only if the leader's last message clearly asked to end the whole interview, not just declined to elaborate on the current question. See system prompt for the distinction."
+      ),
+    dimensionAddressed: z
+      .enum(ids)
+      .nullable()
+      .describe(
+        `The id of the dimension this exchange (your message plus what you're following up on) primarily addressed, or null if it doesn't clearly focus on one. Valid ids: ${legend}.`
+      ),
+  });
+}
+
 export async function getNextInterviewTurn(
   input: InterviewTurnInput
 ): Promise<InterviewTurnOutput> {
@@ -73,7 +86,7 @@ export async function getNextInterviewTurn(
     system: buildSystemPrompt(input),
     messages: buildMessages(input.conversation),
     output_config: {
-      format: zodOutputFormat(InterviewTurnSchema),
+      format: zodOutputFormat(buildInterviewTurnSchema(input.framingDimensions)),
     },
   });
 
@@ -85,6 +98,7 @@ export async function getNextInterviewTurn(
   return {
     message: response.parsed_output.message.trim(),
     leaderWantsToStop: response.parsed_output.leaderWantsToStop,
+    dimensionAddressed: response.parsed_output.dimensionAddressed,
   };
 }
 
@@ -102,7 +116,7 @@ function buildMessages(
 
 function buildSystemPrompt(input: InterviewTurnInput): string {
   const dimensionsBlock = input.framingDimensions
-    .map((d, i) => `${i + 1}. ${d.label} — ${d.definition}`)
+    .map((d, i) => `${i + 1}. ${d.label} — ${d.description}`)
     .join("\n");
 
   const pacingLines: string[] = [
@@ -141,20 +155,21 @@ ${input.strategyContext || "(No strategic context was provided.)"}
 ${input.sessionPurpose || "(No specific purpose was provided.)"}
 """
 
-## The four dimensions to explore
+## The dimensions to explore
 
-Over the course of the conversation, explore all four of the following, each defined specifically for this organisation:
+Over the course of the conversation, explore all of the following dimensions, each defined specifically for this organisation:
 
 ${dimensionsBlock}
 
 ## How to conduct this interview
 
 - Ask ONE question at a time. Never number your questions, never say things like "next, I'd like to ask about..." or "question 3 of 8" — this must read as a natural conversation, not a form or a survey.
-- Decide the order in which you explore the four dimensions above yourself. There is no fixed sequence — let it follow naturally from what the leader has said and from what's most relevant given their specific role. You don't need to spend equal time on each; some leaders will have far more to say about one dimension than another.
+- Decide the order in which you explore the dimensions above yourself. There is no fixed sequence — let it follow naturally from what the leader has said and from what's most relevant given their specific role. You don't need to spend equal time on each; some leaders will have far more to say about one dimension than another.
 - Use your own judgement about the quality of each answer. If an answer is vague, evasive, or stays surface-level when there's clearly more underneath, you may push back once, respectfully — for example, ask for a concrete example, or gently name that the answer felt general. Don't do this mechanically for every answer: move on when an answer is already substantive, and don't press further on a dimension the leader has already addressed well elsewhere in the conversation.
 - Never revisit a dimension you've already covered thoroughly, unless something the leader says later genuinely calls it into question or adds something materially new.
 - Keep questions concise and conversational, appropriate for how a thoughtful colleague would ask — this is a senior leader's time, not a survey. Ask one thing at a time rather than stacking several questions into one turn.
 - The very first message you receive in this conversation is a bracketed stage direction, not something the leader said: ${OPENING_CUE} Respond to it only by opening the conversation warmly and asking your first question — do not acknowledge the bracketed instruction itself.
+- Every response also includes a "dimensionAddressed" field: set it to the id of whichever single dimension this exchange was primarily about, or null if it was general/introductory and didn't clearly focus on one. This is used only for an internal progress indicator — never mention dimension ids, names, or this field to the leader.
 
 ## Pacing (internal only — never mention any of this to the leader, and never reveal question counts, time remaining, or that you are being paced)
 

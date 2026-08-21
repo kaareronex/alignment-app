@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getInterviewSessionId } from "@/lib/interview-session-cookie";
+import type { FramingDimension } from "@/app/admin/framing-defaults";
 import SessionView from "./session-view";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function InterviewSessionPage({
     supabase
       .from("projects")
       .select(
-        "status, access_mode, timer_status, timer_started_at, time_limit_enabled, time_limit_minutes"
+        "status, access_mode, timer_status, timer_started_at, time_limit_enabled, time_limit_minutes, framing_definitions"
       )
       .eq("id", projectId)
       .maybeSingle(),
@@ -49,6 +50,12 @@ export default async function InterviewSessionPage({
     redirect(`/interview/${projectId}`);
   }
 
+  // Only the ids reach the browser - labels/descriptions guide the model
+  // server-side but aren't shown to leaders.
+  const dimensionIds = ((project.framing_definitions ?? []) as FramingDimension[]).map(
+    (d) => d.id
+  );
+
   return (
     <SessionView
       projectId={projectId}
@@ -58,6 +65,7 @@ export default async function InterviewSessionPage({
       timeLimitEnabled={project.time_limit_enabled}
       timeLimitMinutes={project.time_limit_minutes}
       sessionStartedAt={session.started_at}
+      dimensionIds={dimensionIds}
     />
   );
 }

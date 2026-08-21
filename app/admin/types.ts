@@ -1,10 +1,12 @@
+import type { FramingDimension } from "./framing-defaults";
+
 export type Project = {
   id: string;
   name: string;
   status: "draft" | "active" | "closed";
   strategy_context: string | null;
   session_purpose: string | null;
-  framing_definitions: Record<string, string>;
+  framing_definitions: FramingDimension[];
   max_questions: number;
   access_mode: "lobby" | "open";
   time_limit_enabled: boolean;
