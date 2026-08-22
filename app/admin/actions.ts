@@ -11,7 +11,7 @@ import {
   MAX_DIMENSIONS,
   type FramingDimension,
 } from "./framing-defaults";
-import type { Leader, SynthesisContent } from "./types";
+import type { Leader, SynthesisContent, SynthesisDimension } from "./types";
 import { getSynthesis, type SynthesisSessionInput } from "@/lib/ai/synthesis-model";
 
 export async function createProject() {
@@ -185,7 +185,9 @@ export async function generateSynthesis(projectId: string) {
 
   const { data: project, error: projectError } = await supabase
     .from("projects")
-    .select("strategy_context, session_purpose, framing_definitions")
+    .select(
+      "strategy_context, session_purpose, framing_definitions, workshop_duration_minutes"
+    )
     .eq("id", projectId)
     .maybeSingle();
   if (projectError) throw new Error(projectError.message);
@@ -274,11 +276,14 @@ export async function generateSynthesis(projectId: string) {
     messages: messagesBySession.get(row.id) ?? [],
   }));
 
+  const workshopDurationMinutes = project.workshop_duration_minutes;
+
   const output = await getSynthesis({
     strategyContext: project.strategy_context ?? "",
     sessionPurpose: project.session_purpose ?? "",
     framingDimensions,
     sessions: synthesisSessions,
+    workshopDurationMinutes,
   });
 
   const leaderIds = synthesisSessions.map((s) => s.leaderId);
@@ -286,47 +291,129 @@ export async function generateSynthesis(projectId: string) {
     framingDimensions.map((d) => [d.id, d.label] as const)
   );
 
+  const dimensions: SynthesisDimension[] = framingDimensions.map((dim) => {
+    const dimOutput = output.dimensions.find((d) => d.dimensionId === dim.id);
+    if (!dimOutput) {
+      throw new Error(
+        `Synthesis model did not return a dimension for "${dim.label}".`
+      );
+    }
+
+    // Deterministic aggregation, not left to the model: group each
+    // leader's position by their (already-anonymised) role tag.
+    const breakdownByRole = new Map<
+      string,
+      { aligned: number; mixed: number; concerned: number; not_addressed: number }
+    >();
+    for (const leaderId of leaderIds) {
+      const roleTag = roleTagByRef.get(leaderId) ?? OTHER_LEADERS_TAG;
+      const position = dimOutput.positions.find((p) => p.leaderId === leaderId);
+      const category = position?.category ?? "not_addressed";
+      const entry =
+        breakdownByRole.get(roleTag) ??
+        { aligned: 0, mixed: 0, concerned: 0, not_addressed: 0 };
+      entry[category] += 1;
+      breakdownByRole.set(roleTag, entry);
+    }
+
+    return {
+      dimensionId: dim.id,
+      label: dimensionLabelById.get(dim.id) ?? dim.label,
+      narrative: dimOutput.narrative,
+      breakdown: Array.from(breakdownByRole.entries()).map(
+        ([roleLabel, counts]) => ({
+          roleLabel,
+          ...counts,
+          total: counts.aligned + counts.mixed + counts.concerned + counts.not_addressed,
+        })
+      ),
+    };
+  });
+
+  if (output.topPriorities.length !== output.workshopPlan.agendaItems.length) {
+    throw new Error(
+      "Synthesis model returned a different number of agenda items than top priorities."
+    );
+  }
+
+  const dimensionByIdContent = new Map(dimensions.map((d) => [d.dimensionId, d]));
+
+  // Deterministic time weighting, not left to the model: priorities tied to
+  // a dimension with more "concerned"/"mixed" spread get more workshop time
+  // than ones the team is already aligned on. Priorities with no single
+  // dimension (cross-cutting) get the average weight across all dimensions.
+  function contestednessWeight(primaryDimensionId: string | null): number {
+    if (primaryDimensionId) {
+      const dim = dimensionByIdContent.get(primaryDimensionId);
+      if (dim) {
+        const concerned = dim.breakdown.reduce((sum, r) => sum + r.concerned, 0);
+        const mixed = dim.breakdown.reduce((sum, r) => sum + r.mixed, 0);
+        return Math.max(1, concerned * 2 + mixed);
+      }
+    }
+    const weights = dimensions.map((dim) => {
+      const concerned = dim.breakdown.reduce((sum, r) => sum + r.concerned, 0);
+      const mixed = dim.breakdown.reduce((sum, r) => sum + r.mixed, 0);
+      return Math.max(1, concerned * 2 + mixed);
+    });
+    return weights.reduce((sum, w) => sum + w, 0) / weights.length;
+  }
+
+  const weights = output.topPriorities.map((p) =>
+    contestednessWeight(p.primaryDimensionId)
+  );
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+
+  const openingMinutes = Math.min(
+    15,
+    Math.max(5, Math.round(workshopDurationMinutes * 0.08))
+  );
+  const closingMinutes = Math.min(
+    20,
+    Math.max(10, Math.round(workshopDurationMinutes * 0.12))
+  );
+  const agendaMinutesTotal = Math.max(
+    0,
+    workshopDurationMinutes - openingMinutes - closingMinutes
+  );
+
+  const agendaMinutes = weights.map((w) =>
+    Math.max(1, Math.round((agendaMinutesTotal * w) / totalWeight))
+  );
+  // Rounding can drift the sum off the target by a few minutes - correct it
+  // on the largest item so the total still lands exactly on
+  // workshopDurationMinutes, not a stale-looking near-miss.
+  const roundingDrift =
+    agendaMinutesTotal - agendaMinutes.reduce((sum, m) => sum + m, 0);
+  if (agendaMinutes.length > 0) {
+    const largestIndex = agendaMinutes.indexOf(Math.max(...agendaMinutes));
+    agendaMinutes[largestIndex] = Math.max(
+      1,
+      agendaMinutes[largestIndex] + roundingDrift
+    );
+  }
+
   const content: SynthesisContent = {
     sessionCount: sessionRows.length,
-    topPriorities: output.topPriorities,
-    dimensions: framingDimensions.map((dim) => {
-      const dimOutput = output.dimensions.find((d) => d.dimensionId === dim.id);
-      if (!dimOutput) {
-        throw new Error(
-          `Synthesis model did not return a dimension for "${dim.label}".`
-        );
-      }
-
-      // Deterministic aggregation, not left to the model: group each
-      // leader's position by their (already-anonymised) role tag.
-      const breakdownByRole = new Map<
-        string,
-        { aligned: number; mixed: number; concerned: number; not_addressed: number }
-      >();
-      for (const leaderId of leaderIds) {
-        const roleTag = roleTagByRef.get(leaderId) ?? OTHER_LEADERS_TAG;
-        const position = dimOutput.positions.find((p) => p.leaderId === leaderId);
-        const category = position?.category ?? "not_addressed";
-        const entry =
-          breakdownByRole.get(roleTag) ??
-          { aligned: 0, mixed: 0, concerned: 0, not_addressed: 0 };
-        entry[category] += 1;
-        breakdownByRole.set(roleTag, entry);
-      }
-
-      return {
-        dimensionId: dim.id,
-        label: dimensionLabelById.get(dim.id) ?? dim.label,
-        narrative: dimOutput.narrative,
-        breakdown: Array.from(breakdownByRole.entries()).map(
-          ([roleLabel, counts]) => ({
-            roleLabel,
-            ...counts,
-            total: counts.aligned + counts.mixed + counts.concerned + counts.not_addressed,
-          })
-        ),
-      };
-    }),
+    dimensions,
+    topPriorities: output.topPriorities.map((p) => ({
+      text: p.text,
+      primaryDimensionId: p.primaryDimensionId,
+    })),
+    workshopPlan: {
+      totalMinutes: workshopDurationMinutes,
+      openingFraming: output.workshopPlan.openingFraming,
+      openingMinutes,
+      agendaItems: output.workshopPlan.agendaItems.map((item, i) => ({
+        priorityText: output.topPriorities[i].text,
+        discussionPrompt: item.discussionPrompt,
+        hypothesis: item.hypothesis,
+        exercise: item.exercise,
+        minutes: agendaMinutes[i],
+      })),
+      closingMinutes,
+      closingTemplate: output.workshopPlan.closingTemplate,
+    },
   };
 
   const generatedAt = new Date().toISOString();

@@ -39,7 +39,7 @@ export default function SynthesisView({
         <h2 className="text-lg font-semibold">Top priorities to discuss</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm">
           {synthesis.content.topPriorities.map((p, i) => (
-            <li key={i}>{p}</li>
+            <li key={i}>{p.text}</li>
           ))}
         </ul>
       </section>
@@ -77,6 +77,50 @@ export default function SynthesisView({
           </table>
         </section>
       ))}
+
+      <section className="space-y-4 rounded border border-neutral-200 p-4">
+        <h2 className="text-lg font-semibold">
+          Workshop plan for your session ({synthesis.content.workshopPlan.totalMinutes} min)
+        </h2>
+
+        <div>
+          <h3 className="text-sm font-semibold text-neutral-500">
+            Opening ({synthesis.content.workshopPlan.openingMinutes} min)
+          </h3>
+          <p className="text-sm text-neutral-700">
+            {synthesis.content.workshopPlan.openingFraming}
+          </p>
+        </div>
+
+        {synthesis.content.workshopPlan.agendaItems.map((item, i) => (
+          <div key={i} className="space-y-1 border-t border-neutral-100 pt-3">
+            <h3 className="text-sm font-semibold">
+              {item.priorityText} ({item.minutes} min)
+            </h3>
+            <p className="text-sm text-neutral-700">
+              <span className="font-medium">Discussion prompt: </span>
+              {item.discussionPrompt}
+            </p>
+            <p className="text-sm text-neutral-700">
+              <span className="font-medium">Hypothesis: </span>
+              {item.hypothesis}
+            </p>
+            <p className="text-sm text-neutral-700">
+              <span className="font-medium">Exercise: </span>
+              {item.exercise}
+            </p>
+          </div>
+        ))}
+
+        <div className="border-t border-neutral-100 pt-3">
+          <h3 className="text-sm font-semibold text-neutral-500">
+            Closing ({synthesis.content.workshopPlan.closingMinutes} min)
+          </h3>
+          <p className="whitespace-pre-line text-sm text-neutral-700">
+            {synthesis.content.workshopPlan.closingTemplate}
+          </p>
+        </div>
+      </section>
     </div>
   );
 }

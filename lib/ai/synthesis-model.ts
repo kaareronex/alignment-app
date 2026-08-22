@@ -18,7 +18,10 @@ import type { FramingDimension } from "./interview-model";
  */
 
 const MODEL = "claude-opus-4-8";
-const MAX_TOKENS = 8192;
+// Raised alongside the workshop plan addition - one narrative+breakdown per
+// dimension plus a full agenda item per priority is a lot more output than
+// the original dimensions-and-priorities-only response.
+const MAX_TOKENS = 16384;
 
 export type SynthesisMessageInput = {
   sender: "assistant" | "leader";
@@ -39,6 +42,8 @@ export type SynthesisInput = {
   sessionPurpose: string;
   framingDimensions: FramingDimension[];
   sessions: SynthesisSessionInput[];
+  /** Context only - exact per-item time allocation is computed by the caller. */
+  workshopDurationMinutes: number;
 };
 
 export const SYNTHESIS_POSITION_CATEGORIES = [
@@ -57,9 +62,27 @@ export type SynthesisDimensionOutput = {
   positions: { leaderId: string; category: SynthesisPositionCategory }[];
 };
 
+export type SynthesisTopPriorityOutput = {
+  text: string;
+  primaryDimensionId: string | null;
+};
+
+export type WorkshopAgendaItemOutput = {
+  discussionPrompt: string;
+  hypothesis: string;
+  exercise: string;
+};
+
+export type WorkshopPlanOutput = {
+  openingFraming: string;
+  agendaItems: WorkshopAgendaItemOutput[];
+  closingTemplate: string;
+};
+
 export type SynthesisOutput = {
   dimensions: SynthesisDimensionOutput[];
-  topPriorities: string[];
+  topPriorities: SynthesisTopPriorityOutput[];
+  workshopPlan: WorkshopPlanOutput;
 };
 
 function buildSynthesisSchema(
@@ -94,6 +117,38 @@ function buildSynthesisSchema(
       ),
   });
 
+  const topPrioritySchema = z.object({
+    text: z
+      .string()
+      .describe(
+        "A concrete priority or open question this leadership team should discuss first to reach alignment - not restating a per-dimension narrative, but pointing at what matters most to resolve given everything above."
+      ),
+    primaryDimensionId: z
+      .enum(dimIds)
+      .nullable()
+      .describe(
+        "The single dimension this priority relates to most, used to weight how much workshop time it gets - or null if it's genuinely cross-cutting and doesn't map to one dimension more than others."
+      ),
+  });
+
+  const agendaItemSchema = z.object({
+    discussionPrompt: z
+      .string()
+      .describe(
+        "A direct, specific question to open the group's discussion on this priority - concrete enough to ask out loud in the room, not a restatement of the priority text."
+      ),
+    hypothesis: z
+      .string()
+      .describe(
+        'One testable hypothesis phrased for the room, in the literal form "We believe X - confirm or challenge this," where X is a specific, falsifiable claim drawn from the synthesis findings for this priority.'
+      ),
+    exercise: z
+      .string()
+      .describe(
+        "One concrete facilitation exercise suited to a senior leadership group, e.g. silent writing before discussion, a spectrum/positioning line, small-group breakouts, a fishbowl, dot-voting. Must vary the mechanic across agenda items - do not reuse the same exercise type for every priority."
+      ),
+  });
+
   return z.object({
     dimensions: z
       .array(dimensionSchema)
@@ -101,10 +156,27 @@ function buildSynthesisSchema(
         `Exactly one entry per dimension id, covering all of, in this order: ${dimIds.join(", ")}.`
       ),
     topPriorities: z
-      .array(z.string())
+      .array(topPrioritySchema)
       .describe(
-        "3-6 concrete priorities or questions this leadership team should discuss first to reach alignment, drawing across all dimensions - not restating the per-dimension narratives, but pointing at what matters most to resolve given everything above."
+        "3-6 top priorities, drawing across all dimensions, in priority order."
       ),
+    workshopPlan: z.object({
+      openingFraming: z
+        .string()
+        .describe(
+          "A short (3-5 sentence), anonymised summary of the honest overall picture across the team, phrased to make it safe to name disagreement out loud in the room - set a tone of candour without pointing at any individual."
+        ),
+      agendaItems: z
+        .array(agendaItemSchema)
+        .describe(
+          "Exactly one entry per top priority, in the exact same order as topPriorities - agendaItems[i] corresponds to topPriorities[i]."
+        ),
+      closingTemplate: z
+        .string()
+        .describe(
+          "A short, literal fill-in-live template for the facilitator to capture what the group actually agreed before they leave - structured as repeatable short lines of Decision / Owner / Next step, not prose. Ready to project and fill in during the session, not a description of what to do."
+        ),
+    }),
   });
 }
 
@@ -113,23 +185,34 @@ export async function getSynthesis(
 ): Promise<SynthesisOutput> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const leaderIds = input.sessions.map((s) => s.leaderId);
+  const format = zodOutputFormat(
+    buildSynthesisSchema(input.framingDimensions, leaderIds)
+  );
 
-  const response = await client.messages.parse({
+  // create() + manual stop_reason check, not parse() - see the equivalent
+  // comment in lib/ai/interview-model.ts. The workshop plan addition makes
+  // this response substantially longer, so a truncated/incomplete response
+  // is worth surfacing clearly rather than as an opaque JSON parse error.
+  const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: buildSystemPrompt(input),
     messages: [{ role: "user", content: "Generate the synthesis now." }],
-    output_config: {
-      format: zodOutputFormat(
-        buildSynthesisSchema(input.framingDimensions, leaderIds)
-      ),
-    },
+    output_config: { format },
   });
 
-  if (!response.parsed_output) {
-    throw new Error("Failed to parse structured output from the synthesis model.");
+  if (response.stop_reason !== "end_turn") {
+    throw new Error(
+      `Synthesis model response did not finish normally (stop_reason: "${response.stop_reason}") - the response is incomplete and cannot be used.`
+    );
   }
-  return response.parsed_output;
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock) {
+    throw new Error("Synthesis model response contained no text content block.");
+  }
+
+  return format.parse(textBlock.text);
 }
 
 function buildSystemPrompt(input: SynthesisInput): string {
@@ -177,7 +260,14 @@ ${transcriptsBlock}
 
 ## What to produce
 
-For EACH dimension listed above, write a short qualitative narrative (consensus vs disagreement vs what's being avoided) and classify every single leader ref's position on that dimension specifically. Then write one final cross-cutting list of the top priorities or open questions this team should discuss first to reach alignment, drawing across all dimensions - not a per-dimension summary restated, but what matters most given the whole picture.
+For EACH dimension listed above, write a short qualitative narrative (consensus vs disagreement vs what's being avoided) and classify every single leader ref's position on that dimension specifically.
 
-Be direct and specific rather than diplomatic-vague - this report is for the leadership team itself, and its value is in naming real disagreement and avoidance clearly, while still only ever referring to leaders by the ref/tag given.`;
+Then produce the top priorities: 3-6 concrete priorities or open questions this team should discuss first to reach alignment, drawing across all dimensions - not a per-dimension summary restated, but what matters most given the whole picture, each tagged with the single dimension it relates to most (or null if genuinely cross-cutting).
+
+Finally, produce a workshop plan for a facilitator to run a live session with this leadership team, roughly ${input.workshopDurationMinutes} minutes long (exact per-item timing will be calculated separately - focus on content, not minutes):
+- An opening framing that makes it safe to name disagreement in the room.
+- One agenda item per top priority (same order), each with a discussion prompt, a "we believe X - confirm or challenge this" hypothesis grounded in what the interviews actually showed, and one concrete facilitation exercise - vary the exercise mechanic across items rather than repeating the same one.
+- A closing template the facilitator can fill in live to capture what was actually agreed.
+
+Be direct and specific rather than diplomatic-vague throughout - this report and plan are for the leadership team itself, and their value is in naming real disagreement and avoidance clearly, while still only ever referring to leaders by the ref/tag given.`;
 }

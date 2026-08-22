@@ -24,7 +24,7 @@ function toMarkdown(projectName: string, synthesis: Synthesis): string {
   lines.push("## Top priorities to discuss");
   lines.push("");
   for (const p of synthesis.content.topPriorities) {
-    lines.push(`- ${p}`);
+    lines.push(`- ${p.text}`);
   }
   lines.push("");
 
@@ -42,6 +42,28 @@ function toMarkdown(projectName: string, synthesis: Synthesis): string {
     }
     lines.push("");
   }
+
+  const plan = synthesis.content.workshopPlan;
+  lines.push(`## Workshop plan for your session (${plan.totalMinutes} min)`);
+  lines.push("");
+  lines.push(`### Opening (${plan.openingMinutes} min)`);
+  lines.push("");
+  lines.push(plan.openingFraming);
+  lines.push("");
+  for (const item of plan.agendaItems) {
+    lines.push(`### ${item.priorityText} (${item.minutes} min)`);
+    lines.push("");
+    lines.push(`**Discussion prompt:** ${item.discussionPrompt}`);
+    lines.push("");
+    lines.push(`**Hypothesis:** ${item.hypothesis}`);
+    lines.push("");
+    lines.push(`**Exercise:** ${item.exercise}`);
+    lines.push("");
+  }
+  lines.push(`### Closing (${plan.closingMinutes} min)`);
+  lines.push("");
+  lines.push(plan.closingTemplate);
+  lines.push("");
 
   return lines.join("\n");
 }

@@ -11,6 +11,7 @@ export type Project = {
   access_mode: "lobby" | "open";
   time_limit_enabled: boolean;
   time_limit_minutes: number | null;
+  workshop_duration_minutes: number;
   timer_status: "not_started" | "running" | "ended";
   timer_started_at: string | null;
   created_at: string;
@@ -44,10 +45,33 @@ export type SynthesisDimension = {
   breakdown: SynthesisDimensionBreakdownEntry[];
 };
 
+export type SynthesisTopPriority = {
+  text: string;
+  primaryDimensionId: string | null;
+};
+
+export type WorkshopAgendaItem = {
+  priorityText: string;
+  discussionPrompt: string;
+  hypothesis: string;
+  exercise: string;
+  minutes: number;
+};
+
+export type WorkshopPlan = {
+  totalMinutes: number;
+  openingFraming: string;
+  openingMinutes: number;
+  agendaItems: WorkshopAgendaItem[];
+  closingMinutes: number;
+  closingTemplate: string;
+};
+
 export type SynthesisContent = {
   sessionCount: number;
   dimensions: SynthesisDimension[];
-  topPriorities: string[];
+  topPriorities: SynthesisTopPriority[];
+  workshopPlan: WorkshopPlan;
 };
 
 export type Synthesis = {

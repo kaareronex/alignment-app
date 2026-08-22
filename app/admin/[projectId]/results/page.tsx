@@ -38,6 +38,16 @@ export default async function ProjectResultsPage({
   if (countError) throw new Error(countError.message);
   if (!project) notFound();
 
+  // A synthesis row generated before the workshop-plan field existed has an
+  // old-shaped content blob - since synthesis is always fully overwritten
+  // (never migrated in place), treat it as stale rather than render a
+  // half-formed page. The "Regenerate" button still shows, since a row
+  // does exist.
+  const hasCurrentShapeSynthesis =
+    !!synthesis &&
+    Array.isArray((synthesis.content as { topPriorities?: unknown })?.topPriorities) &&
+    !!(synthesis.content as { workshopPlan?: unknown })?.workshopPlan;
+
   return (
     <div className="space-y-6">
       <Link
@@ -61,11 +71,17 @@ export default async function ProjectResultsPage({
         {(completedCount ?? 0) === 1 ? "" : "s"} available for synthesis.
       </p>
 
-      {synthesis ? (
+      {hasCurrentShapeSynthesis ? (
         <SynthesisView
           projectName={project.name}
           synthesis={synthesis as unknown as Synthesis}
         />
+      ) : synthesis ? (
+        <p className="text-neutral-600">
+          The last synthesis for this project was generated before the
+          workshop plan feature existed and can&apos;t be shown in the
+          current format. Regenerate it to see the full results.
+        </p>
       ) : (
         <p className="text-neutral-600">
           No synthesis has been generated yet. Generate one once at least one
