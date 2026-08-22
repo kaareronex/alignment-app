@@ -21,3 +21,38 @@ export type Leader = {
   name: string;
   role_label: string;
 };
+
+export type SynthesisPositionCategory =
+  | "aligned"
+  | "mixed"
+  | "concerned"
+  | "not_addressed";
+
+export type SynthesisDimensionBreakdownEntry = {
+  roleLabel: string;
+  aligned: number;
+  mixed: number;
+  concerned: number;
+  not_addressed: number;
+  total: number;
+};
+
+export type SynthesisDimension = {
+  dimensionId: string;
+  label: string;
+  narrative: string;
+  breakdown: SynthesisDimensionBreakdownEntry[];
+};
+
+export type SynthesisContent = {
+  sessionCount: number;
+  dimensions: SynthesisDimension[];
+  topPriorities: string[];
+};
+
+export type Synthesis = {
+  id: string;
+  project_id: string;
+  generated_at: string;
+  content: SynthesisContent;
+};

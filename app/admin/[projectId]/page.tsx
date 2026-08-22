@@ -37,12 +37,20 @@ export default async function ProjectPage({
         <h1 className="text-2xl font-semibold">
           {(project as Project).name || "Untitled project"}
         </h1>
-        <Link
-          href={`/admin/${projectId}/status`}
-          className="text-sm text-neutral-500 hover:underline"
-        >
-          View status →
-        </Link>
+        <div className="flex gap-4">
+          <Link
+            href={`/admin/${projectId}/status`}
+            className="text-sm text-neutral-500 hover:underline"
+          >
+            View status →
+          </Link>
+          <Link
+            href={`/admin/${projectId}/results`}
+            className="text-sm text-neutral-500 hover:underline"
+          >
+            View results →
+          </Link>
+        </div>
       </div>
       <ProjectEditForm
         project={project as Project}
