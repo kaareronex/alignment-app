@@ -10,10 +10,12 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
  */
 
 const MODEL = "claude-opus-4-8";
-// Generous headroom over what the conversational text itself needs - the
-// structured-output JSON wrapper (field names, escaping) adds overhead on
-// top of the message content, and a truncated response fails to parse.
-const MAX_TOKENS = 1024;
+// 1024 was not actually generous: a growing conversation plus a
+// substantive follow-up question, wrapped in the structured-output JSON,
+// can run past it - which truncates the response mid-JSON and fails to
+// parse. 4096 is a safer floor; see the stop_reason check below for what
+// happens if a response still runs past it.
+const MAX_TOKENS = 4096;
 const OPENING_CUE =
   "[Begin the interview with your opening question now.]";
 
@@ -79,26 +81,36 @@ export async function getNextInterviewTurn(
   input: InterviewTurnInput
 ): Promise<InterviewTurnOutput> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const format = zodOutputFormat(buildInterviewTurnSchema(input.framingDimensions));
 
-  const response = await client.messages.parse({
+  // Using create() instead of parse() so stop_reason can be checked before
+  // attempting to parse the content - parse() would otherwise try to
+  // JSON.parse a response truncated by max_tokens and throw an opaque
+  // "unterminated string" error that hides the actual cause.
+  const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     system: buildSystemPrompt(input),
     messages: buildMessages(input.conversation),
-    output_config: {
-      format: zodOutputFormat(buildInterviewTurnSchema(input.framingDimensions)),
-    },
+    output_config: { format },
   });
 
-  if (!response.parsed_output) {
+  if (response.stop_reason === "max_tokens") {
     throw new Error(
-      "Failed to parse structured output from the interview model."
+      `Interview model response was cut off by the max_tokens limit (${MAX_TOKENS}) before it finished - raise MAX_TOKENS in lib/ai/interview-model.ts.`
     );
   }
+
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock) {
+    throw new Error("Interview model response contained no text content block.");
+  }
+
+  const parsed = format.parse(textBlock.text);
   return {
-    message: response.parsed_output.message.trim(),
-    leaderWantsToStop: response.parsed_output.leaderWantsToStop,
-    dimensionAddressed: response.parsed_output.dimensionAddressed,
+    message: parsed.message.trim(),
+    leaderWantsToStop: parsed.leaderWantsToStop,
+    dimensionAddressed: parsed.dimensionAddressed,
   };
 }
 
