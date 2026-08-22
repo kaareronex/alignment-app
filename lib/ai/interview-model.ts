@@ -9,7 +9,11 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
  * editing this file, not the callers.
  */
 
-const MODEL = "claude-opus-4-8";
+// Temporarily Sonnet while iterating (cheaper/faster, and worth checking
+// whether it also reduces the corrupted-output pattern under investigation).
+// lib/ai/synthesis-model.ts stays on Opus - it runs once per project, not
+// once per exchange, and needs the stronger reasoning.
+const MODEL = "claude-sonnet-5";
 // 1024 was not actually generous: a growing conversation plus a
 // substantive follow-up question, wrapped in the structured-output JSON,
 // can run past it - which truncates the response mid-JSON and fails to
