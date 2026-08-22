@@ -95,9 +95,15 @@ export async function getNextInterviewTurn(
     output_config: { format },
   });
 
-  if (response.stop_reason === "max_tokens") {
+  // Anything other than "end_turn" means the response is incomplete and
+  // unsafe to parse - most commonly "max_tokens" (raise MAX_TOKENS) or
+  // "model_context_window_exceeded" (the growing conversation history plus
+  // MAX_TOKENS of reserved output no longer fits the model's context
+  // window - the same fix doesn't apply; the conversation itself needs
+  // trimming/summarising once it gets this long).
+  if (response.stop_reason !== "end_turn") {
     throw new Error(
-      `Interview model response was cut off by the max_tokens limit (${MAX_TOKENS}) before it finished - raise MAX_TOKENS in lib/ai/interview-model.ts.`
+      `Interview model response did not finish normally (stop_reason: "${response.stop_reason}") - the response is incomplete and cannot be used.`
     );
   }
 
