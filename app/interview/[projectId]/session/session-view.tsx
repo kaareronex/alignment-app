@@ -88,10 +88,10 @@ export default function SessionView({
   if (isWaiting) {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">
+        <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
           Waiting for the interview to start
         </h1>
-        <p className="text-neutral-600">
+        <p style={{ color: "var(--im-ash)" }}>
           The interview will start shortly. Please keep this page open.
         </p>
       </div>
@@ -99,9 +99,9 @@ export default function SessionView({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {remainingMs !== null && (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm" style={{ color: "var(--im-grey)" }}>
           Time remaining: {formatRemaining(remainingMs)}
         </p>
       )}

@@ -47,17 +47,21 @@ export default function GenerateSynthesisButton({
             ? "No completed sessions yet"
             : undefined
         }
-        className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+        className="btn-primary"
       >
         {label}
       </button>
       {isPending && (
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs" style={{ color: "var(--im-grey)" }}>
           This calls Claude and reads every completed interview - it can take
           a minute or two for larger teams.
         </p>
       )}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && (
+        <p className="text-xs" style={{ color: "var(--im-deep-red, #451f23)" }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }

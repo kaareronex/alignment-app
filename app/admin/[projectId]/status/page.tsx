@@ -24,24 +24,23 @@ export default async function ProjectStatusPage({
 
   return (
     <div className="space-y-4">
-      <Link
-        href={`/admin/${projectId}`}
-        className="text-sm text-neutral-500 hover:underline"
-      >
+      <Link href={`/admin/${projectId}`} className="im-link text-sm">
         &larr; Back to project
       </Link>
-      <h1 className="text-2xl font-semibold">{project.name} — Status</h1>
+      <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
+        {project.name} — Status
+      </h1>
 
       <ProjectStatusControl projectId={project.id} status={project.status} />
 
       {project.access_mode === "open" ? (
-        <p className="text-neutral-600">
+        <p style={{ color: "var(--im-ash)" }}>
           This project uses open access — each leader starts their own
           interview when they join, so there is no shared timer to start
           here.
         </p>
       ) : project.timer_status === "running" ? (
-        <p className="text-neutral-600">
+        <p style={{ color: "var(--im-ash)" }}>
           The timer started at{" "}
           {project.timer_started_at
             ? new Date(project.timer_started_at).toLocaleString("en-GB")
@@ -50,7 +49,7 @@ export default async function ProjectStatusPage({
         </p>
       ) : (
         <div className="space-y-2">
-          <p className="text-neutral-600">
+          <p style={{ color: "var(--im-ash)" }}>
             Leaders in the lobby are waiting for the shared start signal.
           </p>
           <StartTimerButton projectId={project.id} />

@@ -12,51 +12,47 @@ export default function ChangePasswordForm() {
   return (
     <form action={formAction} className="max-w-sm space-y-4">
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Current password
-        </label>
+        <label className="im-label">Current password</label>
         <input
           type="password"
           name="currentPassword"
           required
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          New password
-        </label>
+        <label className="im-label">New password</label>
         <input
           type="password"
           name="newPassword"
           required
           minLength={8}
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Confirm new password
-        </label>
+        <label className="im-label">Confirm new password</label>
         <input
           type="password"
           name="confirmNewPassword"
           required
           minLength={8}
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
       </div>
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && (
+        <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
+          {state.error}
+        </p>
+      )}
       {state?.success && (
-        <p className="text-sm text-green-600">Password changed.</p>
+        <p className="text-sm" style={{ color: "var(--im-blue-green)" }}>
+          Password changed.
+        </p>
       )}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
-      >
+      <button type="submit" disabled={isPending} className="btn-primary">
         {isPending ? "Saving…" : "Change password"}
       </button>
     </form>

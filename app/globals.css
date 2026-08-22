@@ -1,26 +1,173 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary brand */
+  --im-blue-green: #67817f;
+  --im-green-grey: #b9c7c2;
+
+  /* Neutrals */
+  --im-black: #1f1f23;
+  --im-ash: #30373b;
+  --im-grey: #a8a5a1;
+  --im-egg: #f8f5e7;
+  --im-light-grey: #f2f2f1;
+  --im-white: #ffffff;
+
+  /* Nuance scales */
+  --im-blue-green-60: #a4b3b2;
+  --im-blue-green-30: #c2cdcc;
+  --im-blue-green-light: #e1e6e5;
+  --im-blue-green-near-white: #f1f4f3;
+
+  --im-green-grey-60: #d5ddda;
+  --im-green-grey-30: #e3e9e7;
+
+  /* Typography */
+  --font-display: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-body: Arial, Helvetica, sans-serif;
+
+  /* Spacing scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 2rem;
+  --space-xl: 4rem;
+  --space-2xl: 6rem;
+
+  --background: var(--im-white);
+  --foreground: var(--im-black);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+}
+
+/* Palatino is a display/accent font only - never bold, never uppercase. */
+.im-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: none;
+}
+
+.im-brand-wordmark {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.25rem;
+  letter-spacing: 0.01em;
+}
+
+.btn-primary {
+  display: inline-block;
+  background-color: var(--im-blue-green);
+  color: var(--im-white);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.65rem 1.25rem;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--im-ash);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  display: inline-block;
+  background-color: transparent;
+  color: var(--im-blue-green);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 700;
+  padding: 0.65rem 1.25rem;
+  border: 1px solid var(--im-blue-green);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--im-blue-green-near-white);
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-text {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--im-ash);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.btn-text:hover:not(:disabled) {
+  color: var(--im-blue-green);
+  text-decoration: underline;
+}
+
+.btn-danger-text {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--im-deep-red, #451f23);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+.btn-danger-text:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.im-card {
+  background: var(--im-white);
+  border: 1px solid var(--im-blue-green-light);
+  border-radius: 2px;
+  padding: 1.5rem;
+}
+
+.im-input {
+  width: 100%;
+  border: 1px solid var(--im-grey);
+  border-radius: 2px;
+  padding: 0.5rem 0.65rem;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  color: var(--im-black);
+  background: var(--im-white);
+}
+.im-input:focus {
+  outline: none;
+  border-color: var(--im-blue-green);
+  box-shadow: 0 0 0 1px var(--im-blue-green);
+}
+
+.im-label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--im-ash);
+  margin-bottom: 0.25rem;
+}
+
+.im-link {
+  color: var(--im-blue-green);
+  text-decoration: none;
+}
+.im-link:hover {
+  text-decoration: underline;
 }

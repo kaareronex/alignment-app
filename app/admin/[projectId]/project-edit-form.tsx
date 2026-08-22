@@ -138,45 +138,41 @@ export default function ProjectEditForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Project name
-        </label>
+        <label className="im-label">Project name</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Strategy context
-        </label>
+        <label className="im-label">Strategy context</label>
         <textarea
           rows={6}
           value={strategyContext}
           onChange={(e) => setStrategyContext(e.target.value)}
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Session purpose
-        </label>
+        <label className="im-label">Session purpose</label>
         <textarea
           rows={3}
           value={sessionPurpose}
           onChange={(e) => setSessionPurpose(e.target.value)}
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-medium">Framing dimensions</h2>
-        <p className="mb-4 text-sm text-neutral-500">
+        <h2 className="im-display mb-2 text-lg" style={{ color: "var(--im-black)" }}>
+          Framing dimensions
+        </h2>
+        <p className="mb-4 text-sm" style={{ color: "var(--im-grey)" }}>
           These definitions aren&apos;t shown to leaders directly — they
           guide the AI interviewer&apos;s judgement about what counts as
           each dimension when it generates follow-up questions and later
@@ -188,16 +184,14 @@ export default function ProjectEditForm({
         </p>
         <div className="space-y-4">
           {dimensions.map((dim, i) => (
-            <div
-              key={dim.id}
-              className="space-y-2 rounded border border-neutral-200 p-3"
-            >
+            <div key={dim.id} className="im-card space-y-2">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => moveDimension(i, -1)}
                   disabled={i === 0}
-                  className="px-1 text-sm text-neutral-500 disabled:opacity-30"
+                  className="px-1 text-sm disabled:opacity-30"
+                  style={{ color: "var(--im-grey)" }}
                   aria-label="Move up"
                 >
                   ↑
@@ -206,7 +200,8 @@ export default function ProjectEditForm({
                   type="button"
                   onClick={() => moveDimension(i, 1)}
                   disabled={i === dimensions.length - 1}
-                  className="px-1 text-sm text-neutral-500 disabled:opacity-30"
+                  className="px-1 text-sm disabled:opacity-30"
+                  style={{ color: "var(--im-grey)" }}
                   aria-label="Move down"
                 >
                   ↓
@@ -219,13 +214,13 @@ export default function ProjectEditForm({
                   }
                   placeholder="Label"
                   required
-                  className="flex-1 rounded border border-neutral-300 p-2 font-medium"
+                  className="im-input flex-1 font-medium"
                 />
                 <button
                   type="button"
                   onClick={() => removeDimension(i)}
                   disabled={dimensions.length <= MIN_DIMENSIONS}
-                  className="px-2 py-2 text-sm text-red-600 hover:underline disabled:opacity-30 disabled:no-underline"
+                  className="btn-danger-text px-2 py-2 disabled:opacity-30"
                 >
                   Remove
                 </button>
@@ -237,7 +232,7 @@ export default function ProjectEditForm({
                   updateDimension(i, { description: e.target.value })
                 }
                 placeholder="Description"
-                className="w-full rounded border border-neutral-300 p-2"
+                className="im-input"
               />
             </div>
           ))}
@@ -246,29 +241,27 @@ export default function ProjectEditForm({
           type="button"
           onClick={addDimension}
           disabled={dimensions.length >= MAX_DIMENSIONS}
-          className="mt-3 text-sm underline disabled:opacity-30 disabled:no-underline"
+          className="btn-text mt-3 disabled:opacity-30"
         >
           + Add dimension
         </button>
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Max questions
-        </label>
+        <label className="im-label">Max questions</label>
         <input
           type="number"
           min={1}
           value={maxQuestions}
           onChange={(e) => setMaxQuestions(Number(e.target.value))}
           required
-          className="w-32 rounded border border-neutral-300 p-2"
+          className="im-input w-32"
         />
       </div>
 
       <fieldset>
-        <legend className="mb-1 text-sm font-medium">Access mode</legend>
-        <label className="mr-4 inline-flex items-center gap-1">
+        <legend className="im-label">Access mode</legend>
+        <label className="mr-4 inline-flex items-center gap-1 text-sm">
           <input
             type="radio"
             name="access_mode"
@@ -277,7 +270,7 @@ export default function ProjectEditForm({
           />
           Lobby
         </label>
-        <label className="inline-flex items-center gap-1">
+        <label className="inline-flex items-center gap-1 text-sm">
           <input
             type="radio"
             name="access_mode"
@@ -289,7 +282,7 @@ export default function ProjectEditForm({
       </fieldset>
 
       <div>
-        <label className="inline-flex items-center gap-2">
+        <label className="inline-flex items-center gap-2 text-sm">
           <input
             type="checkbox"
             checked={timeLimitEnabled}
@@ -299,22 +292,22 @@ export default function ProjectEditForm({
         </label>
         {timeLimitEnabled && (
           <div className="mt-2">
-            <label className="mb-1 block text-sm font-medium">
-              Time limit (minutes)
-            </label>
+            <label className="im-label">Time limit (minutes)</label>
             <input
               type="number"
               min={1}
               value={timeLimitMinutes}
               onChange={(e) => setTimeLimitMinutes(Number(e.target.value))}
-              className="w-32 rounded border border-neutral-300 p-2"
+              className="im-input w-32"
             />
           </div>
         )}
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-medium">Leaders</h2>
+        <h2 className="im-display mb-2 text-lg" style={{ color: "var(--im-black)" }}>
+          Leaders
+        </h2>
         <div className="space-y-2">
           {leaderRows.map((row, i) => (
             <div key={row.id ?? `new-${i}`} className="flex items-start gap-2">
@@ -323,7 +316,7 @@ export default function ProjectEditForm({
                 placeholder="Name"
                 value={row.name}
                 onChange={(e) => updateLeaderRow(i, { name: e.target.value })}
-                className="flex-1 rounded border border-neutral-300 p-2"
+                className="im-input flex-1"
               />
               <input
                 type="text"
@@ -332,46 +325,46 @@ export default function ProjectEditForm({
                 onChange={(e) =>
                   updateLeaderRow(i, { role_label: e.target.value })
                 }
-                className="flex-1 rounded border border-neutral-300 p-2"
+                className="im-input flex-1"
               />
               <button
                 type="button"
                 onClick={() => removeLeaderRow(i)}
-                className="px-2 py-2 text-sm text-red-600 hover:underline"
+                className="btn-danger-text px-2 py-2"
               >
                 Remove
               </button>
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          onClick={addLeaderRow}
-          className="mt-3 text-sm underline"
-        >
+        <button type="button" onClick={addLeaderRow} className="btn-text mt-3">
           + Add leader
         </button>
       </div>
 
-      <div className="rounded border border-neutral-200 bg-neutral-50 p-4">
-        <p className="text-sm text-neutral-500">
+      <div className="im-card" style={{ backgroundColor: "var(--im-light-grey)" }}>
+        <p className="text-sm" style={{ color: "var(--im-grey)" }}>
           Shareable interview link (not active yet):
         </p>
-        <code className="mt-1 block">/interview/{project.id}</code>
+        <code className="mt-1 block" style={{ color: "var(--im-black)" }}>
+          /interview/{project.id}
+        </code>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
+          {error}
+        </p>
+      )}
 
       <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
-        >
+        <button type="submit" disabled={isPending} className="btn-primary">
           {isPending ? "Saving…" : "Save"}
         </button>
         {saved && !isPending && (
-          <span className="text-sm text-green-600">Saved.</span>
+          <span className="text-sm" style={{ color: "var(--im-blue-green)" }}>
+            Saved.
+          </span>
         )}
       </div>
     </form>

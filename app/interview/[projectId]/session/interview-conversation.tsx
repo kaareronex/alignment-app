@@ -32,9 +32,11 @@ function ProgressBar({
       {Array.from({ length: totalCount }, (_, i) => (
         <div
           key={i}
-          className={`h-1.5 flex-1 rounded-full ${
-            i < touchedCount ? "bg-black" : "bg-neutral-200"
-          }`}
+          className="h-1 flex-1 rounded-[2px]"
+          style={{
+            backgroundColor:
+              i < touchedCount ? "var(--im-blue-green)" : "var(--im-blue-green-light)",
+          }}
         />
       ))}
     </div>
@@ -120,20 +122,16 @@ export default function InterviewConversation({
   }
 
   if (phase.kind === "loading") {
-    return <p className="text-neutral-500">Preparing your first question…</p>;
+    return <p style={{ color: "var(--im-grey)" }}>Preparing your first question…</p>;
   }
 
   if (phase.kind === "load-error") {
     return (
       <div className="space-y-2">
-        <p className="text-red-600">
+        <p style={{ color: "var(--im-deep-red, #451f23)" }}>
           Something went wrong loading your interview.
         </p>
-        <button
-          type="button"
-          onClick={handleRetryLoad}
-          className="text-sm underline"
-        >
+        <button type="button" onClick={handleRetryLoad} className="btn-text">
           Try again
         </button>
       </div>
@@ -143,8 +141,10 @@ export default function InterviewConversation({
   if (phase.kind === "completed") {
     return (
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Thank you</h1>
-        <p className="text-neutral-600">
+        <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
+          Thank you
+        </h1>
+        <p style={{ color: "var(--im-ash)" }}>
           That&apos;s everything for now — thank you for taking the time to
           share your thinking.
         </p>
@@ -153,27 +153,33 @@ export default function InterviewConversation({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <ProgressBar
         totalCount={dimensionIds.length}
         touchedCount={touchedDimensionIds.length}
       />
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-lg">{phase.message}</p>
+        <p className="im-display text-xl" style={{ color: "var(--im-black)" }}>
+          {phase.message}
+        </p>
         <textarea
           value={answer}
           onChange={(e) => setAnswer(e.target.value)}
-          rows={4}
+          rows={5}
           placeholder="Type your answer…"
           autoFocus
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
-        {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+        {submitError && (
+          <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
+            {submitError}
+          </p>
+        )}
         <div className="flex items-center gap-4">
           <button
             type="submit"
             disabled={!answer.trim() || isSubmitting}
-            className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+            className="btn-primary"
           >
             {isSubmitting ? "Sending…" : "Send"}
           </button>
@@ -181,7 +187,7 @@ export default function InterviewConversation({
             type="button"
             onClick={handleEndEarly}
             disabled={isEnding}
-            className="text-sm text-neutral-500 hover:underline disabled:opacity-50"
+            className="btn-text disabled:opacity-50"
           >
             {isEnding ? "Ending…" : "End interview early"}
           </button>

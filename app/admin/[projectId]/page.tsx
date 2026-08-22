@@ -30,24 +30,18 @@ export default async function ProjectPage({
 
   return (
     <>
-      <Link href="/admin" className="text-sm text-neutral-500 hover:underline">
+      <Link href="/admin" className="im-link text-sm">
         &larr; Back to projects
       </Link>
       <div className="mb-6 mt-2 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">
+        <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
           {(project as Project).name || "Untitled project"}
         </h1>
         <div className="flex gap-4">
-          <Link
-            href={`/admin/${projectId}/status`}
-            className="text-sm text-neutral-500 hover:underline"
-          >
+          <Link href={`/admin/${projectId}/status`} className="im-link text-sm">
             View status →
           </Link>
-          <Link
-            href={`/admin/${projectId}/results`}
-            className="text-sm text-neutral-500 hover:underline"
-          >
+          <Link href={`/admin/${projectId}/results`} className="im-link text-sm">
             View results →
           </Link>
         </div>

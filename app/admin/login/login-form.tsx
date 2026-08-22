@@ -15,18 +15,18 @@ export default function LoginForm({
 
   return (
     <form action={formAction} className="max-w-sm space-y-4">
-      <h1 className="text-2xl font-semibold">
+      <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
         {hasPasswordSet ? "Admin login" : "Set admin password"}
       </h1>
       {!hasPasswordSet && (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm" style={{ color: "var(--im-grey)" }}>
           No admin password has been set yet. Choose one now to protect the
           admin area.
         </p>
       )}
 
       <div>
-        <label className="mb-1 block text-sm font-medium">
+        <label className="im-label">
           {hasPasswordSet ? "Password" : "New password"}
         </label>
         <input
@@ -35,32 +35,30 @@ export default function LoginForm({
           required
           minLength={hasPasswordSet ? undefined : 8}
           autoFocus
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         />
       </div>
 
       {!hasPasswordSet && (
         <div>
-          <label className="mb-1 block text-sm font-medium">
-            Confirm password
-          </label>
+          <label className="im-label">Confirm password</label>
           <input
             type="password"
             name="confirmPassword"
             required
             minLength={8}
-            className="w-full rounded border border-neutral-300 p-2"
+            className="im-input"
           />
         </div>
       )}
 
-      {state?.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state?.error && (
+        <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
+          {state.error}
+        </p>
+      )}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
-      >
+      <button type="submit" disabled={isPending} className="btn-primary">
         {isPending
           ? "Please wait…"
           : hasPasswordSet

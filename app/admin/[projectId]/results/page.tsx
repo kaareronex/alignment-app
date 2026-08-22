@@ -50,15 +50,14 @@ export default async function ProjectResultsPage({
 
   return (
     <div className="space-y-6">
-      <Link
-        href={`/admin/${projectId}`}
-        className="text-sm text-neutral-500 hover:underline"
-      >
+      <Link href={`/admin/${projectId}`} className="im-link text-sm">
         &larr; Back to project
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">{project.name} — Results</h1>
+        <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
+          {project.name} — Results
+        </h1>
         <GenerateSynthesisButton
           projectId={projectId}
           hasExistingSynthesis={!!synthesis}
@@ -66,7 +65,7 @@ export default async function ProjectResultsPage({
         />
       </div>
 
-      <p className="text-sm text-neutral-500">
+      <p className="text-sm" style={{ color: "var(--im-grey)" }}>
         {completedCount ?? 0} completed session
         {(completedCount ?? 0) === 1 ? "" : "s"} available for synthesis.
       </p>
@@ -77,13 +76,13 @@ export default async function ProjectResultsPage({
           synthesis={synthesis as unknown as Synthesis}
         />
       ) : synthesis ? (
-        <p className="text-neutral-600">
+        <p style={{ color: "var(--im-ash)" }}>
           The last synthesis for this project was generated before the
           workshop plan feature existed and can&apos;t be shown in the
           current format. Regenerate it to see the full results.
         </p>
       ) : (
-        <p className="text-neutral-600">
+        <p style={{ color: "var(--im-ash)" }}>
           No synthesis has been generated yet. Generate one once at least one
           leader has completed their interview.
         </p>

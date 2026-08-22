@@ -32,14 +32,14 @@ export default function ProjectStatusControl({
 
   return (
     <div className="flex items-center gap-2">
-      <label className="text-sm font-medium" htmlFor="project-status">
+      <label className="im-label mb-0" htmlFor="project-status">
         Project status
       </label>
       <select
         id="project-status"
         value={selected}
         onChange={(e) => setSelected(e.target.value as Status)}
-        className="rounded border border-neutral-300 p-2 text-sm"
+        className="im-input w-auto text-sm"
       >
         {STATUS_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>
@@ -51,7 +51,7 @@ export default function ProjectStatusControl({
         type="button"
         onClick={handleUpdate}
         disabled={isPending || selected === status}
-        className="rounded bg-black px-3 py-2 text-sm text-white disabled:opacity-50"
+        className="btn-primary"
       >
         {isPending ? "Updating…" : "Update"}
       </button>

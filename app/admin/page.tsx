@@ -17,29 +17,33 @@ export default async function AdminPage() {
   return (
     <>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Projects</h1>
+        <h1 className="text-2xl font-semibold" style={{ color: "var(--im-black)" }}>
+          Projects
+        </h1>
         <form action={createProject}>
-          <button
-            type="submit"
-            className="rounded bg-black px-4 py-2 text-sm text-white hover:bg-neutral-800"
-          >
+          <button type="submit" className="btn-primary">
             New project
           </button>
         </form>
       </div>
 
       {!projects || projects.length === 0 ? (
-        <p className="text-neutral-500">No projects yet.</p>
+        <p style={{ color: "var(--im-grey)" }}>No projects yet.</p>
       ) : (
-        <ul className="divide-y divide-neutral-200 rounded border border-neutral-200">
+        <ul className="im-card divide-y divide-[var(--im-blue-green-light)] p-0">
           {projects.map((project) => (
             <li
               key={project.id}
               className="flex items-center justify-between p-4"
             >
               <Link href={`/admin/${project.id}`} className="flex-1">
-                <span className="font-medium">{project.name}</span>
-                <span className="ml-3 text-sm uppercase text-neutral-500">
+                <span className="font-medium" style={{ color: "var(--im-black)" }}>
+                  {project.name}
+                </span>
+                <span
+                  className="ml-3 text-sm uppercase"
+                  style={{ color: "var(--im-grey)" }}
+                >
                   {project.status}
                 </span>
               </Link>

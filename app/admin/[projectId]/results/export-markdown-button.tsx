@@ -91,7 +91,7 @@ export default function ExportMarkdownButton({
     <button
       type="button"
       onClick={handleClick}
-      className="rounded border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-100"
+      className="btn-secondary"
     >
       Export as markdown
     </button>

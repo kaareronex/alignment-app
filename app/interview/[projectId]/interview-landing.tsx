@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { startInterviewSession } from "../actions";
+import IntroScreen from "./intro-screen";
 
 type ProjectPublicState = {
   id: string;
@@ -33,6 +34,7 @@ export default function InterviewLanding({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,17 +108,32 @@ export default function InterviewLanding({
     // Otherwise the server action already redirected to the session page.
   }
 
+  if (showIntro) {
+    const minutesText =
+      state.phase === "ready" &&
+      state.project.time_limit_enabled &&
+      state.project.time_limit_minutes
+        ? `around ${state.project.time_limit_minutes} minutes`
+        : "around 15 minutes";
+    return (
+      <IntroScreen
+        minutesText={minutesText}
+        onContinue={() => setShowIntro(false)}
+      />
+    );
+  }
+
   if (state.phase === "loading") {
-    return <p className="text-neutral-500">Loading…</p>;
+    return <p style={{ color: "var(--im-grey)" }}>Loading…</p>;
   }
 
   if (state.phase === "unavailable") {
-    return <p className="text-neutral-700">{state.message}</p>;
+    return <p style={{ color: "var(--im-ash)" }}>{state.message}</p>;
   }
 
   if (alreadyCompleted) {
     return (
-      <p className="text-neutral-700">
+      <p style={{ color: "var(--im-ash)" }}>
         You&apos;ve already completed this interview. Thank you.
       </p>
     );
@@ -124,16 +141,16 @@ export default function InterviewLanding({
 
   return (
     <div className="max-w-sm space-y-4">
-      <h1 className="text-2xl font-semibold">{state.project.name}</h1>
+      <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
+        {state.project.name}
+      </h1>
 
       <div>
-        <label className="mb-1 block text-sm font-medium">
-          Select your name
-        </label>
+        <label className="im-label">Select your name</label>
         <select
           value={selectedLeaderId}
           onChange={(e) => setSelectedLeaderId(e.target.value)}
-          className="w-full rounded border border-neutral-300 p-2"
+          className="im-input"
         >
           <option value="">Choose your name…</option>
           {state.leaders.map((leader) => (
@@ -144,13 +161,17 @@ export default function InterviewLanding({
         </select>
       </div>
 
-      {submitError && <p className="text-sm text-red-600">{submitError}</p>}
+      {submitError && (
+        <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
+          {submitError}
+        </p>
+      )}
 
       <button
         type="button"
         onClick={handleConfirm}
         disabled={!selectedLeaderId || isSubmitting}
-        className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+        className="btn-primary"
       >
         {isSubmitting ? "Please wait…" : "Confirm"}
       </button>

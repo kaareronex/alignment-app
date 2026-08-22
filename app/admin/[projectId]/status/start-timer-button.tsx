@@ -24,7 +24,7 @@ export default function StartTimerButton({
       type="button"
       onClick={handleClick}
       disabled={isPending}
-      className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-50"
+      className="btn-primary"
     >
       {isPending ? "Starting…" : "Start timer"}
     </button>

@@ -26,7 +26,10 @@ export default function SynthesisView({
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-600">
+      <div
+        className="flex flex-wrap items-center justify-between gap-2 rounded-[2px] border p-3 text-sm"
+        style={{ borderColor: "var(--im-blue-green-light)", backgroundColor: "var(--im-light-grey)", color: "var(--im-ash)" }}
+      >
         <span>
           Generated {generatedAt} from {synthesis.content.sessionCount}{" "}
           completed session
@@ -35,9 +38,11 @@ export default function SynthesisView({
         <ExportMarkdownButton projectName={projectName} synthesis={synthesis} />
       </div>
 
-      <section className="space-y-2 rounded border border-neutral-200 p-4">
-        <h2 className="text-lg font-semibold">Top priorities to discuss</h2>
-        <ul className="list-disc space-y-1 pl-5 text-sm">
+      <section className="im-card space-y-2">
+        <h2 className="im-display text-lg" style={{ color: "var(--im-black)" }}>
+          Top priorities to discuss
+        </h2>
+        <ul className="list-disc space-y-1 pl-5 text-sm" style={{ color: "var(--im-ash)" }}>
           {synthesis.content.topPriorities.map((p, i) => (
             <li key={i}>{p.text}</li>
           ))}
@@ -45,13 +50,15 @@ export default function SynthesisView({
       </section>
 
       {synthesis.content.dimensions.map((dim) => (
-        <section key={dim.dimensionId} className="space-y-3 rounded border border-neutral-200 p-4">
-          <h2 className="text-lg font-semibold">{dim.label}</h2>
-          <p className="text-sm text-neutral-700">{dim.narrative}</p>
+        <section key={dim.dimensionId} className="im-card space-y-3">
+          <h2 className="im-display text-lg" style={{ color: "var(--im-black)" }}>
+            {dim.label}
+          </h2>
+          <p className="text-sm" style={{ color: "var(--im-ash)" }}>{dim.narrative}</p>
 
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 text-neutral-500">
+              <tr className="border-b" style={{ borderColor: "var(--im-blue-green-light)", color: "var(--im-grey)" }}>
                 <th className="py-1 pr-2 font-medium">Role</th>
                 {CATEGORY_ORDER.map((c) => (
                   <th key={c} className="py-1 pr-2 font-medium">
@@ -63,7 +70,11 @@ export default function SynthesisView({
             </thead>
             <tbody>
               {dim.breakdown.map((row) => (
-                <tr key={row.roleLabel} className="border-b border-neutral-100">
+                <tr
+                  key={row.roleLabel}
+                  className="border-b"
+                  style={{ borderColor: "var(--im-blue-green-near-white)", color: "var(--im-black)" }}
+                >
                   <td className="py-1 pr-2">{row.roleLabel}</td>
                   {CATEGORY_ORDER.map((c) => (
                     <td key={c} className="py-1 pr-2">
@@ -78,45 +89,49 @@ export default function SynthesisView({
         </section>
       ))}
 
-      <section className="space-y-4 rounded border border-neutral-200 p-4">
-        <h2 className="text-lg font-semibold">
+      <section className="im-card space-y-4">
+        <h2 className="im-display text-lg" style={{ color: "var(--im-black)" }}>
           Workshop plan for your session ({synthesis.content.workshopPlan.totalMinutes} min)
         </h2>
 
         <div>
-          <h3 className="text-sm font-semibold text-neutral-500">
+          <h3 className="text-sm font-bold" style={{ color: "var(--im-blue-green)" }}>
             Opening ({synthesis.content.workshopPlan.openingMinutes} min)
           </h3>
-          <p className="text-sm text-neutral-700">
+          <p className="text-sm" style={{ color: "var(--im-ash)" }}>
             {synthesis.content.workshopPlan.openingFraming}
           </p>
         </div>
 
         {synthesis.content.workshopPlan.agendaItems.map((item, i) => (
-          <div key={i} className="space-y-1 border-t border-neutral-100 pt-3">
-            <h3 className="text-sm font-semibold">
+          <div
+            key={i}
+            className="space-y-1 border-t pt-3"
+            style={{ borderColor: "var(--im-blue-green-near-white)" }}
+          >
+            <h3 className="text-sm font-bold" style={{ color: "var(--im-black)" }}>
               {item.priorityText} ({item.minutes} min)
             </h3>
-            <p className="text-sm text-neutral-700">
-              <span className="font-medium">Discussion prompt: </span>
+            <p className="text-sm" style={{ color: "var(--im-ash)" }}>
+              <span className="font-bold">Discussion prompt: </span>
               {item.discussionPrompt}
             </p>
-            <p className="text-sm text-neutral-700">
-              <span className="font-medium">Hypothesis: </span>
+            <p className="text-sm" style={{ color: "var(--im-ash)" }}>
+              <span className="font-bold">Hypothesis: </span>
               {item.hypothesis}
             </p>
-            <p className="text-sm text-neutral-700">
-              <span className="font-medium">Exercise: </span>
+            <p className="text-sm" style={{ color: "var(--im-ash)" }}>
+              <span className="font-bold">Exercise: </span>
               {item.exercise}
             </p>
           </div>
         ))}
 
-        <div className="border-t border-neutral-100 pt-3">
-          <h3 className="text-sm font-semibold text-neutral-500">
+        <div className="border-t pt-3" style={{ borderColor: "var(--im-blue-green-near-white)" }}>
+          <h3 className="text-sm font-bold" style={{ color: "var(--im-blue-green)" }}>
             Closing ({synthesis.content.workshopPlan.closingMinutes} min)
           </h3>
-          <p className="whitespace-pre-line text-sm text-neutral-700">
+          <p className="whitespace-pre-line text-sm" style={{ color: "var(--im-ash)" }}>
             {synthesis.content.workshopPlan.closingTemplate}
           </p>
         </div>
