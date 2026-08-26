@@ -17,7 +17,12 @@ type ProjectPublicState = {
   max_questions: number;
 };
 
-type LeaderOption = { id: string; name: string; role_label: string };
+type LeaderOption = {
+  id: string;
+  name: string;
+  role_label: string;
+  has_completed: boolean;
+};
 
 type LoadState =
   | { phase: "loading" }
@@ -26,15 +31,21 @@ type LoadState =
 
 export default function InterviewLanding({
   projectId,
+  initialAlreadyCompleted = false,
 }: {
   projectId: string;
+  initialAlreadyCompleted?: boolean;
 }) {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [selectedLeaderId, setSelectedLeaderId] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
-  const [showIntro, setShowIntro] = useState(true);
+  const [alreadyCompleted, setAlreadyCompleted] = useState(
+    initialAlreadyCompleted
+  );
+  // A leader arriving here already known to be completed (resumed a
+  // now-finished session) has nothing left to be introduced to.
+  const [showIntro, setShowIntro] = useState(!initialAlreadyCompleted);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,17 +106,24 @@ export default function InterviewLanding({
     if (!selectedLeaderId) return;
     setIsSubmitting(true);
     setSubmitError(null);
-    const result = await startInterviewSession(projectId, selectedLeaderId);
-    if (result?.alreadyCompleted) {
-      setAlreadyCompleted(true);
+    try {
+      const result = await startInterviewSession(projectId, selectedLeaderId);
+      if (result?.alreadyCompleted) {
+        setAlreadyCompleted(true);
+        return;
+      }
+      if (result?.error) {
+        setSubmitError(result.error);
+      }
+      // Otherwise the server action already redirected to the session page.
+    } catch {
+      // Previously uncaught - a transient failure here (network blip,
+      // momentary DB error) left the button stuck on "Please wait..."
+      // forever with no feedback at all.
+      setSubmitError("Something went wrong starting your interview. Please try again.");
+    } finally {
       setIsSubmitting(false);
-      return;
     }
-    if (result?.error) {
-      setSubmitError(result.error);
-      setIsSubmitting(false);
-    }
-    // Otherwise the server action already redirected to the session page.
   }
 
   if (showIntro) {
@@ -154,8 +172,13 @@ export default function InterviewLanding({
         >
           <option value="">Choose your name…</option>
           {state.leaders.map((leader) => (
-            <option key={leader.id} value={leader.id}>
+            <option
+              key={leader.id}
+              value={leader.id}
+              style={leader.has_completed ? { color: "var(--im-grey)" } : undefined}
+            >
               {leader.name} — {leader.role_label}
+              {leader.has_completed ? " (completed)" : ""}
             </option>
           ))}
         </select>

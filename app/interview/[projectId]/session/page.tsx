@@ -40,13 +40,17 @@ export default async function InterviewSessionPage({
   if (sessionError) throw new Error(sessionError.message);
   if (projectError) throw new Error(projectError.message);
 
-  if (
-    !session ||
-    session.project_id !== projectId ||
-    !project ||
-    project.status !== "active" ||
-    session.status === "completed"
-  ) {
+  // A resumed session (cookie still set from an earlier visit) that has
+  // since been completed - by hard stop, early exit, or on another
+  // device - gets its own redirect flag so the landing page shows the
+  // same "already completed" message it would show from a fresh name
+  // selection, instead of silently bouncing back to the picker as if
+  // nothing had happened.
+  if (session && session.project_id === projectId && session.status === "completed") {
+    redirect(`/interview/${projectId}?completed=1`);
+  }
+
+  if (!session || session.project_id !== projectId || !project || project.status !== "active") {
     redirect(`/interview/${projectId}`);
   }
 
