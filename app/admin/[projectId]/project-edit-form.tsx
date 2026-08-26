@@ -9,6 +9,7 @@ import {
   type FramingDimension,
 } from "../framing-defaults";
 import type { Leader, Project } from "../types";
+import ShareableLinkCard from "./shareable-link-card";
 
 type LeaderRow = { id: string | null; name: string; role_label: string };
 
@@ -342,14 +343,10 @@ export default function ProjectEditForm({
         </button>
       </div>
 
-      <div className="im-card" style={{ backgroundColor: "var(--im-light-grey)" }}>
-        <p className="text-sm" style={{ color: "var(--im-grey)" }}>
-          Shareable interview link (not active yet):
-        </p>
-        <code className="mt-1 block" style={{ color: "var(--im-black)" }}>
-          /interview/{project.id}
-        </code>
-      </div>
+      <ShareableLinkCard
+        projectId={project.id}
+        isActive={project.status === "active"}
+      />
 
       {error && (
         <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
