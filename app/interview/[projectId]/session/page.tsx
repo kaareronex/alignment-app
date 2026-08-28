@@ -5,6 +5,12 @@ import type { FramingDimension } from "@/app/admin/framing-defaults";
 import SessionView from "./session-view";
 
 export const dynamic = "force-dynamic";
+// Server Actions inherit maxDuration from the page that invokes them, not
+// from the action's own file - advanceInterview() (the Anthropic call) is
+// invoked from this page via InterviewConversation, so this is where it
+// has to be set. 60s is the maximum Vercel's Hobby plan allows; Pro allows
+// up to 300s if 60s turns out not to be enough under real load.
+export const maxDuration = 60;
 
 export default async function InterviewSessionPage({
   params,
