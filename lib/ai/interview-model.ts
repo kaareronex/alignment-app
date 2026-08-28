@@ -125,11 +125,45 @@ export async function getNextInterviewTurn(
     throw new Error("Interview model response contained no text content block.");
   }
 
-  const parsed = format.parse(textBlock.text);
+  // Parsed by hand rather than via format.parse(), which validates the
+  // whole object atomically against the zod schema (including the
+  // dimensionAddressed enum) and throws on any mismatch. The enum in the
+  // schema still guides the model via the API's structured-output
+  // constraint, but it isn't airtight in practice - a handful of live
+  // load-test runs produced a dimensionAddressed value outside the given
+  // ids, which crashed the whole turn even though message and
+  // leaderWantsToStop were both fine. dimensionAddressed only drives an
+  // internal progress indicator, so an unrecognised value is treated as
+  // "no dimension identified" instead of losing the leader's turn over it.
+  let rawParsed: unknown;
+  try {
+    rawParsed = JSON.parse(textBlock.text);
+  } catch (error) {
+    throw new Error(
+      `Failed to parse structured output as JSON: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+
+  if (
+    typeof rawParsed !== "object" ||
+    rawParsed === null ||
+    typeof (rawParsed as Record<string, unknown>).message !== "string"
+  ) {
+    throw new Error("Interview model response was missing a usable message.");
+  }
+
+  const record = rawParsed as Record<string, unknown>;
+  const validDimensionIds = input.framingDimensions.map((d) => d.id);
+  const dimensionAddressed =
+    typeof record.dimensionAddressed === "string" &&
+    validDimensionIds.includes(record.dimensionAddressed)
+      ? record.dimensionAddressed
+      : null;
+
   return {
-    message: parsed.message.trim(),
-    leaderWantsToStop: parsed.leaderWantsToStop,
-    dimensionAddressed: parsed.dimensionAddressed,
+    message: (record.message as string).trim(),
+    leaderWantsToStop: record.leaderWantsToStop === true,
+    dimensionAddressed,
   };
 }
 
