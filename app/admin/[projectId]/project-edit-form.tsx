@@ -171,17 +171,15 @@ export default function ProjectEditForm({
 
       <div>
         <h2 className="im-display mb-2 text-lg" style={{ color: "var(--im-black)" }}>
-          Framing dimensions
+          Themes
         </h2>
         <p className="mb-4 text-sm" style={{ color: "var(--im-grey)" }}>
-          These definitions aren&apos;t shown to participants directly — they
-          guide the AI interviewer&apos;s judgement about what counts as
-          each dimension when it generates follow-up questions and later
-          builds the synthesis. Rename these to fit how you want the AI to
-          frame its questions — for example, replace &quot;Disagreement&quot;
+          These aren&apos;t shown to participants directly — they&apos;re the
+          topics and angles you want the AI interviewer to explore during
+          each conversation. For example, replace &quot;Disagreement&quot;
           with &quot;How people really feel about the strategy&quot; if that
           fits your context better. You can also add, remove, and reorder
-          dimensions (between {MIN_DIMENSIONS} and {MAX_DIMENSIONS}).
+          themes (between {MIN_DIMENSIONS} and {MAX_DIMENSIONS}).
         </p>
         <div className="space-y-4">
           {dimensions.map((dim, i) => (
@@ -244,7 +242,7 @@ export default function ProjectEditForm({
           disabled={dimensions.length >= MAX_DIMENSIONS}
           className="btn-text mt-3 disabled:opacity-30"
         >
-          + Add dimension
+          + Add theme
         </button>
       </div>
 

@@ -56,7 +56,7 @@ itself.
   helpers (`lib/supabase/client.ts` anon, `lib/supabase/server.ts` service
   role).
 - **Admin:** project list/create/delete, full project edit form (strategy
-  context, session purpose, framing dimensions, max questions, access mode,
+  context, session purpose, themes, max questions, access mode,
   time limit, participants CRUD), project status control
   (draft/active/closed), a minimal `/admin/[projectId]/status` page with a
   lobby "Start timer" button, and the password gate/settings described
@@ -69,7 +69,7 @@ itself.
   countdown when a time limit is set.
 - **AI-driven interview conversation** (`lib/ai/interview-model.ts` +
   `app/interview/actions.ts`): one question at a time, model decides
-  dimension order and when to push back on a vague answer, via Claude
+  theme order and when to push back on a vague answer, via Claude
   structured outputs (`client.messages.parse` + `zodOutputFormat`) — never
   free-text parsing. Every turn returns `{ message, leaderWantsToStop,
   dimensionAddressed }`. Session ending is **always server-decided**: hard
@@ -79,11 +79,13 @@ itself.
   button. `sessions.ended_reason` (`model_signal` / `leader_early_exit` /
   `max_questions` / `time_limit`) records which one fired, for later
   reporting.
-- **Flexible framing dimensions:** 2–6 per project, each an admin-editable
-  `{id, label, description}` — no longer fixed to 4 named fields. A
-  segmented progress bar on the session page fills as dimensions get
-  touched on, without ever showing participants a question count or
-  countdown.
+- **Flexible themes:** 2–6 per project, each an admin-editable
+  `{id, label, description}` — no longer fixed to 4 named fields. Stored as
+  `framing_definitions` in code and the database; "themes" is display copy
+  only, adopted in the admin UI since that's a plainer description than
+  "framing dimensions" for what these actually are. A segmented progress
+  bar on the session page fills as themes get touched on, without ever
+  showing participants a question count or countdown.
 
 ### Not yet built
 
@@ -128,6 +130,13 @@ itself.
   (`leader_id`, `leaderName`, etc.) are unchanged by design, to avoid
   touching working, tested RLS policies and functions over a wording
   change.
+- "Themes" is the admin-UI term for what's stored as `framing_definitions`
+  (a project's admin-editable `{id, label, description}` list) — "framing
+  dimensions" was accurate but jargon-y; the hint text under the section on
+  `/admin/[projectId]` describes them plainly as the topics and angles the
+  AI interviewer should explore, not in terms of guiding the model's
+  judgement. Display copy only - field/variable names (`framing_definitions`,
+  `FramingDimension`, `dimensionAddressed`, etc.) are unchanged.
 
 <!-- Next.js agent rules (auto-maintained by `next dev`). -->
 @AGENTS.md

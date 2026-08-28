@@ -83,7 +83,7 @@ export async function saveProject(
     input.framing_definitions.length > MAX_DIMENSIONS
   ) {
     throw new Error(
-      `A project must have between ${MIN_DIMENSIONS} and ${MAX_DIMENSIONS} framing dimensions.`
+      `A project must have between ${MIN_DIMENSIONS} and ${MAX_DIMENSIONS} themes.`
     );
   }
 
