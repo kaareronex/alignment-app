@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   advanceInterview,
   endInterviewEarly,
   type InterviewTurnResponse,
 } from "../../actions";
+import { guessLanguageTag } from "@/lib/voice-lang";
+import VoiceInputButton from "./voice-input-button";
 
 type Phase =
   | { kind: "loading" }
@@ -52,6 +54,10 @@ export default function InterviewConversation({
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [answer, setAnswer] = useState("");
+  const answerRef = useRef(answer);
+  useEffect(() => {
+    answerRef.current = answer;
+  }, [answer]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [touchedDimensionIds, setTouchedDimensionIds] = useState<string[]>([]);
@@ -162,14 +168,25 @@ export default function InterviewConversation({
         <p className="im-display text-xl" style={{ color: "var(--im-black)" }}>
           {phase.message}
         </p>
-        <textarea
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          rows={5}
-          placeholder="Type your answer…"
-          autoFocus
-          className="im-input"
-        />
+        <div className="flex items-start gap-2">
+          <textarea
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            rows={5}
+            placeholder="Type your answer…"
+            autoFocus
+            className="im-input flex-1"
+          />
+          <VoiceInputButton
+            lang={
+              guessLanguageTag(phase.message) ??
+              (typeof navigator !== "undefined" ? navigator.language : "en-GB")
+            }
+            disabled={isSubmitting}
+            baseTextRef={answerRef}
+            onTranscriptChange={setAnswer}
+          />
+        </div>
         {submitError && (
           <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
             {submitError}
