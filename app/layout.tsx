@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Groundwork",
   description:
-    "Groundwork surfaces where a leadership team is - and is not - aligned.",
+    "Groundwork surfaces where a team is - and is not - aligned.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -19,7 +19,7 @@ export async function startInterviewSession(
   leaderId: string
 ): Promise<StartSessionResult> {
   if (!projectId || !leaderId) {
-    return { error: "Missing project or leader." };
+    return { error: "Missing project or participant." };
   }
 
   const supabase = createAdminClient();
@@ -95,7 +95,7 @@ function computeTouchedDimensionIds(
 }
 
 /**
- * Advances the interview by one turn: records the leader's answer to the
+ * Advances the interview by one turn: records the participant's answer to the
  * currently open question (if any), then either asks the next question or
  * ends the session, per the server-side hard stops on question count and
  * time limit - the model is never trusted to decide the session is over on
@@ -141,7 +141,7 @@ export async function advanceInterview(
     .eq("id", session.leader_id)
     .maybeSingle();
   if (leaderError) throw new Error(leaderError.message);
-  if (!leader) throw new Error("Leader not found.");
+  if (!leader) throw new Error("Participant not found.");
 
   const { data: existingMessages, error: messagesError } = await supabase
     .from("messages")
@@ -265,7 +265,7 @@ export async function advanceInterview(
     sessionUpdate.started_at = new Date().toISOString();
   }
   // The model can also end the session voluntarily, when it judges the
-  // leader has clearly asked to stop - checked deterministically here via
+  // participant has clearly asked to stop - checked deterministically here via
   // a structured field, never inferred from the message text. This is on
   // top of, not instead of, the hard stops above: those still fire first
   // and don't depend on this flag at all.
@@ -292,7 +292,7 @@ export async function advanceInterview(
   return { status: "question", message: turn.message, touchedDimensionIds };
 }
 
-/** The leader clicking "End interview early" - a hard stop just like the
+/** The participant clicking "End interview early" - a hard stop just like the
  * count/time ones, distinguished only by ended_reason for later reporting. */
 export async function endInterviewEarly(
   projectId: string

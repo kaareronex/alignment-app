@@ -213,7 +213,7 @@ export async function generateSynthesis(projectId: string) {
   const sessionRows = sessions as unknown as SessionRow[];
 
   // Deterministic anonymity rule, computed server-side: a role_label is
-  // only safe to name if 2+ leaders in THIS run's completed-session set
+  // only safe to name if 2+ participants in THIS run's completed-session set
   // share it exactly. Anyone with a unique role is folded into a generic
   // bucket before the model ever sees anything.
   const roleLabelOf = (row: SessionRow): string => {
@@ -225,7 +225,7 @@ export async function generateSynthesis(projectId: string) {
     const role = roleLabelOf(row);
     roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
   }
-  const OTHER_LEADERS_TAG = "Other leaders";
+  const OTHER_LEADERS_TAG = "Other participants";
   const roleTagByLeaderId = new Map<string, string>();
   for (const row of sessionRows) {
     const role = roleLabelOf(row);
@@ -233,12 +233,12 @@ export async function generateSynthesis(projectId: string) {
     roleTagByLeaderId.set(row.leader_id, safe ? role : OTHER_LEADERS_TAG);
   }
 
-  // Friendly, opaque refs (never the raw leader uuid) are what the model
+  // Friendly, opaque refs (never the raw participant uuid) are what the model
   // actually sees and echoes back - keeps the report readable while
   // staying anonymous. Order is stable (by leader_id) so refs don't shuffle.
   const orderedLeaderIds = sessionRows.map((r) => r.leader_id).sort();
   const refByLeaderId = new Map<string, string>(
-    orderedLeaderIds.map((id, i) => [id, `Leader ${i + 1}`])
+    orderedLeaderIds.map((id, i) => [id, `Participant ${i + 1}`])
   );
 
   const sessionIds = sessionRows.map((r) => r.id);
@@ -300,7 +300,7 @@ export async function generateSynthesis(projectId: string) {
     }
 
     // Deterministic aggregation, not left to the model: group each
-    // leader's position by their (already-anonymised) role tag.
+    // participant's position by their (already-anonymised) role tag.
     const breakdownByRole = new Map<
       string,
       { aligned: number; mixed: number; concerned: number; not_addressed: number }

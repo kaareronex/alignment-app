@@ -61,7 +61,7 @@ export default async function InterviewSessionPage({
   }
 
   // Only the ids reach the browser - labels/descriptions guide the model
-  // server-side but aren't shown to leaders.
+  // server-side but aren't shown to participants.
   const dimensionIds = ((project.framing_definitions ?? []) as FramingDimension[]).map(
     (d) => d.id
   );

@@ -43,7 +43,7 @@ export default function InterviewLanding({
   const [alreadyCompleted, setAlreadyCompleted] = useState(
     initialAlreadyCompleted
   );
-  // A leader arriving here already known to be completed (resumed a
+  // A participant arriving here already known to be completed (resumed a
   // now-finished session) has nothing left to be introduced to.
   const [showIntro, setShowIntro] = useState(!initialAlreadyCompleted);
 

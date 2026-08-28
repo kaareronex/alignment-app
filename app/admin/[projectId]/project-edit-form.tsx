@@ -174,7 +174,7 @@ export default function ProjectEditForm({
           Framing dimensions
         </h2>
         <p className="mb-4 text-sm" style={{ color: "var(--im-grey)" }}>
-          These definitions aren&apos;t shown to leaders directly — they
+          These definitions aren&apos;t shown to participants directly — they
           guide the AI interviewer&apos;s judgement about what counts as
           each dimension when it generates follow-up questions and later
           builds the synthesis. Rename these to fit how you want the AI to
@@ -307,7 +307,7 @@ export default function ProjectEditForm({
 
       <div>
         <h2 className="im-display mb-2 text-lg" style={{ color: "var(--im-black)" }}>
-          Leaders
+          Participants
         </h2>
         <div className="space-y-2">
           {leaderRows.map((row, i) => (
@@ -339,7 +339,7 @@ export default function ProjectEditForm({
           ))}
         </div>
         <button type="button" onClick={addLeaderRow} className="btn-text mt-3">
-          + Add leader
+          + Add participant
         </button>
       </div>
 

@@ -1,7 +1,8 @@
 /**
  * Groundwork wordmark + Implement logo, shared by the admin and
- * leader-facing shells. "dark" is the Anthracite admin header (white logo
- * badge); "light" is the leader-facing pages (black logo on transparent).
+ * participant-facing shells. "dark" is the Anthracite admin header (white
+ * logo badge); "light" is the participant-facing pages (black logo on
+ * transparent).
  */
 export default function BrandHeader({
   variant,

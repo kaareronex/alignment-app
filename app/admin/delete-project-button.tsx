@@ -14,7 +14,7 @@ export default function DeleteProjectButton({
   function handleClick() {
     if (
       !confirm(
-        "Delete this project? This also deletes its leaders, sessions, messages, and synthesis. This cannot be undone."
+        "Delete this project? This also deletes its participants, sessions, messages, and synthesis. This cannot be undone."
       )
     ) {
       return;

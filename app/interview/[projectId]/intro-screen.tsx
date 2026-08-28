@@ -27,6 +27,10 @@ export default function IntroScreen({
           person shares that same role, so you can&apos;t be singled out by
           it either.
         </p>
+        <p style={{ color: "var(--im-ash)" }}>
+          You&apos;re welcome to answer in your own language — the
+          interviewer will understand and continue the conversation in it.
+        </p>
       </div>
 
       <button type="button" onClick={onContinue} className="btn-primary">

@@ -7,7 +7,7 @@ import { useState } from "react";
  * settings for production, .env.local for dev) rather than derived from
  * Vercel's VERCEL_URL - that variable points at the unique per-deployment
  * URL (e.g. a preview build's hash subdomain), not the stable production
- * domain leaders are actually sent, so it would produce wrong links on
+ * domain participants are actually sent, so it would produce wrong links on
  * exactly the deployments where this matters most.
  */
 function getAppUrl(): string {

@@ -35,7 +35,7 @@ export default async function ProjectStatusPage({
 
       {project.access_mode === "open" ? (
         <p style={{ color: "var(--im-ash)" }}>
-          This project uses open access — each leader starts their own
+          This project uses open access — each participant starts their own
           interview when they join, so there is no shared timer to start
           here.
         </p>
@@ -50,7 +50,7 @@ export default async function ProjectStatusPage({
       ) : (
         <div className="space-y-2">
           <p style={{ color: "var(--im-ash)" }}>
-            Leaders in the lobby are waiting for the shared start signal.
+            Participants in the lobby are waiting for the shared start signal.
           </p>
           <StartTimerButton projectId={project.id} />
         </div>

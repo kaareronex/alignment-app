@@ -8,14 +8,14 @@ export const MIN_DIMENSIONS = 2;
 export const MAX_DIMENSIONS = 6;
 
 // Ids are opaque on purpose (not slugs of the label) - framing dimensions
-// aren't shown to leaders directly, and the id is sent to the browser
+// aren't shown to participants directly, and the id is sent to the browser
 // (for progress-bar mapping) even though the label/description aren't.
 export const DEFAULT_FRAMING_DIMENSIONS: FramingDimension[] = [
   {
     id: "c0906d26-2d33-48e8-815d-9db29c33404e",
     label: "Disagreement",
     description:
-      "Areas where the leaders genuinely disagree on direction, priority, or interpretation — not just different wording for the same thing.",
+      "Areas where the participants genuinely disagree on direction, priority, or interpretation — not just different wording for the same thing.",
   },
   {
     id: "aa567b05-7817-43d7-925c-f8d08dfdd8b2",

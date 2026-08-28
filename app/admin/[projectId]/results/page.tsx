@@ -84,7 +84,7 @@ export default async function ProjectResultsPage({
       ) : (
         <p style={{ color: "var(--im-ash)" }}>
           No synthesis has been generated yet. Generate one once at least one
-          leader has completed their interview.
+          participant has completed their interview.
         </p>
       )}
     </div>

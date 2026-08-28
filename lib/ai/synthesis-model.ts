@@ -10,11 +10,15 @@ import type { FramingDimension } from "./interview-model";
  * own file for the same reason: a future provider swap touches exactly two
  * files.
  *
- * Anonymity is enforced by the caller, not by prompting: leader names are
- * never passed in here, and any role_label unique to a single leader in
- * the session set must already have been collapsed to a generic tag
- * (e.g. "Other leaders") by the caller before building this input. The
- * model only ever sees whatever roleTag it's given.
+ * Anonymity is enforced by the caller, not by prompting: participant names
+ * are never passed in here, and any role_label unique to a single
+ * participant in the session set must already have been collapsed to a
+ * generic tag (e.g. "Other participants") by the caller before building
+ * this input. The model only ever sees whatever roleTag it's given.
+ *
+ * "Participant" is display terminology only - field/variable names below
+ * (leaderId, etc.) intentionally match the underlying leaders table and
+ * stay as-is; see CLAUDE.md.
  */
 
 const MODEL = "claude-opus-4-8";
@@ -30,9 +34,9 @@ export type SynthesisMessageInput = {
 };
 
 export type SynthesisSessionInput = {
-  /** Opaque leader id, used only to key the output back to a role tag. */
+  /** Opaque participant id, used only to key the output back to a role tag. */
   leaderId: string;
-  /** Real role_label if 2+ leaders in this run share it, else a generic tag. */
+  /** Real role_label if 2+ participants in this run share it, else a generic tag. */
   roleTag: string;
   messages: SynthesisMessageInput[];
 };
@@ -95,11 +99,11 @@ function buildSynthesisSchema(
   const positionSchema = z.object({
     leaderId: z
       .enum(lIds)
-      .describe("The leader ref this position belongs to."),
+      .describe("The participant ref this position belongs to."),
     category: z
       .enum(SYNTHESIS_POSITION_CATEGORIES)
       .describe(
-        "This leader's position on this dimension specifically: 'aligned' (clearly in line with the emerging consensus), 'mixed' (hedging, partial, or genuinely in-between), 'concerned' (clearly worried, opposed, or flagging a problem), or 'not_addressed' (the interview never meaningfully touched this dimension for this leader)."
+        "This participant's position on this dimension specifically: 'aligned' (clearly in line with the emerging consensus), 'mixed' (hedging, partial, or genuinely in-between), 'concerned' (clearly worried, opposed, or flagging a problem), or 'not_addressed' (the interview never meaningfully touched this dimension for this participant)."
       ),
   });
 
@@ -108,12 +112,12 @@ function buildSynthesisSchema(
     narrative: z
       .string()
       .describe(
-        "3-6 sentences on what's really being said on this dimension: where there's genuine consensus, where there's disagreement, and anything leaders seem to be dancing around or avoiding. Refer to leaders only by the role tag they were given below - never invent a name or a more specific title than the tag provided."
+        "3-6 sentences, in English (UK), on what's really being said on this dimension: where there's genuine consensus, where there's disagreement, and anything participants seem to be dancing around or avoiding. Refer to participants only by the role tag they were given below - never invent a name or a more specific title than the tag provided."
       ),
     positions: z
       .array(positionSchema)
       .describe(
-        `Exactly one entry per leader ref, covering all of: ${leaderIds.join(", ")}.`
+        `Exactly one entry per participant ref, covering all of: ${leaderIds.join(", ")}.`
       ),
   });
 
@@ -228,15 +232,19 @@ function buildSystemPrompt(input: SynthesisInput): string {
             `[${m.sender}${m.dimensionId ? `, re: ${m.dimensionId}` : ""}] ${m.content}`
         )
         .join("\n");
-      return `### Leader ref: ${s.leaderId} (role tag: ${s.roleTag})\n${lines}`;
+      return `### Participant ref: ${s.leaderId} (role tag: ${s.roleTag})\n${lines}`;
     })
     .join("\n\n");
 
-  return `You are synthesising a set of confidential one-on-one leadership-alignment interviews into a report for the same leadership team. You never spoke with these leaders yourself - you are reading full transcripts of interviews already conducted by another AI interviewer, one leader at a time, and your job is to find the cross-leader picture: where this team agrees, where it doesn't, and what it seems to be avoiding.
+  return `You are synthesising a set of confidential one-on-one alignment interviews into a report for the team that commissioned them. You never spoke with these participants yourself - you are reading full transcripts of interviews already conducted by another AI interviewer, one participant at a time, and your job is to find the cross-participant picture: where this team agrees, where it doesn't, and what it seems to be avoiding.
 
 ## Anonymity - read this first
 
-You are given each leader only as an opaque ref (a leader id) plus a role tag. Some role tags are the leader's real role; others have deliberately been replaced with a generic tag like "Other leaders" because that role is unique to one person in this set and naming it would identify them. You have no way to tell which is which, and you must not try to guess or reconstruct a real role from context - always refer to leaders using only the exact ref/tag given below, never a name, and never a more specific title than the tag provided, even if the leader mentions their own title in their answers.
+You are given each participant only as an opaque ref (a participant id) plus a role tag. Some role tags are the participant's real role; others have deliberately been replaced with a generic tag like "Other participants" because that role is unique to one person in this set and naming it would identify them. You have no way to tell which is which, and you must not try to guess or reconstruct a real role from context - always refer to participants using only the exact ref/tag given below, never a name, and never a more specific title than the tag provided, even if the participant mentions their own title in their answers.
+
+## Language
+
+Transcripts may be in different languages from each other and from this prompt - each interview was conducted in whatever language that participant used. Read every transcript for its actual meaning regardless of language, translating faithfully rather than processing only the literal words (idioms, hedging, and emphasis don't always translate word-for-word). Regardless of what language(s) the transcripts are in, everything you produce - every narrative, priority, and workshop plan section - must be written entirely in English (UK), since that's what the consultant reading this report uses.
 
 ## Organisation's strategic context
 
@@ -260,7 +268,7 @@ ${transcriptsBlock}
 
 ## What to produce
 
-For EACH dimension listed above, write a short qualitative narrative (consensus vs disagreement vs what's being avoided) and classify every single leader ref's position on that dimension specifically.
+For EACH dimension listed above, write a short qualitative narrative (consensus vs disagreement vs what's being avoided) and classify every single participant ref's position on that dimension specifically.
 
 Then produce the top priorities: 3-6 concrete priorities or open questions this team should discuss first to reach alignment, drawing across all dimensions - not a per-dimension summary restated, but what matters most given the whole picture, each tagged with the single dimension it relates to most (or null if genuinely cross-cutting).
 
@@ -269,5 +277,5 @@ Finally, produce a workshop plan for a facilitator to run a live session with th
 - One agenda item per top priority (same order), each with a discussion prompt, a "we believe X - confirm or challenge this" hypothesis grounded in what the interviews actually showed, and one concrete facilitation exercise - vary the exercise mechanic across items rather than repeating the same one.
 - A closing template the facilitator can fill in live to capture what was actually agreed.
 
-Be direct and specific rather than diplomatic-vague throughout - this report and plan are for the leadership team itself, and their value is in naming real disagreement and avoidance clearly, while still only ever referring to leaders by the ref/tag given.`;
+Be direct and specific rather than diplomatic-vague throughout - this report and plan are for the team itself, and their value is in naming real disagreement and avoidance clearly, while still only ever referring to participants by the ref/tag given.`;
 }
