@@ -94,7 +94,16 @@ export async function getNextInterviewTurn(
   const response = await client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: buildSystemPrompt(input),
+    // Two blocks, not one string: everything up to and including the
+    // cache_control breakpoint (role/task, strategy context, dimensions,
+    // conduct/ending instructions) is identical on every turn of the same
+    // interview, so it's marked cacheable. Only the pacing block - question
+    // count, final-question flag, time remaining - actually changes turn to
+    // turn, so it's appended after the breakpoint, uncached.
+    system: [
+      { type: "text", text: buildStableSystemPrompt(input), cache_control: { type: "ephemeral" } },
+      { type: "text", text: buildPacingSuffix(input) },
+    ],
     messages: buildMessages(input.conversation),
     output_config: { format },
   });
@@ -136,27 +145,13 @@ function buildMessages(
   }));
 }
 
-function buildSystemPrompt(input: InterviewTurnInput): string {
+// Everything here is identical across every turn of the same interview
+// (same leader, same project) - the part worth caching. Pacing numbers are
+// deliberately kept out of this string; see buildPacingSuffix.
+function buildStableSystemPrompt(input: InterviewTurnInput): string {
   const dimensionsBlock = input.framingDimensions
     .map((d, i) => `${i + 1}. ${d.label} — ${d.description}`)
     .join("\n");
-
-  const pacingLines: string[] = [
-    `You have asked ${input.questionsAskedSoFar} question(s) so far, out of a maximum of ${input.maxQuestions} for this session.`,
-  ];
-
-  if (input.isFinalQuestion) {
-    pacingLines.push(
-      "This will be the LAST question you are allowed to ask — after the leader responds, the session will end automatically and you will not get another turn. Do not open a new line of inquiry you won't have room to follow up on. If, given everything covered so far, you feel there's nothing essential left to ask, you may instead give a brief, warm closing remark thanking them for their time, rather than asking a new question."
-    );
-  }
-
-  if (input.timeRemainingSeconds !== null) {
-    const minutes = Math.max(0, Math.round(input.timeRemainingSeconds / 60));
-    pacingLines.push(
-      `There are approximately ${minutes} minute(s) remaining in this session. Use this to pace yourself: if time is running low, prioritise covering dimensions you haven't touched on yet over pursuing deep follow-ups, and if you judge this is very likely your last exchange, end with a brief, warm closing remark instead of starting a new substantive question.`
-    );
-  }
 
   return `You are conducting a one-on-one interview with a senior leader, as part of a confidential leadership-alignment exercise for their organisation. Your job is to help surface where this leadership team is — and is not — aligned on strategy. The leader's individual answers are not shown to the rest of the leadership team by name; only anonymised, role-tagged themes get shared back in the synthesis. You are speaking directly with the leader now, so write as if talking to them, not about them.
 
@@ -193,17 +188,38 @@ ${dimensionsBlock}
 - The very first message you receive in this conversation is a bracketed stage direction, not something the leader said: ${OPENING_CUE} Respond to it only by opening the conversation warmly and asking your first question — do not acknowledge the bracketed instruction itself.
 - Every response also includes a "dimensionAddressed" field: set it to the id of whichever single dimension this exchange was primarily about, or null if it was general/introductory and didn't clearly focus on one. This is used only for an internal progress indicator — never mention dimension ids, names, or this field to the leader.
 
-## Pacing (internal only — never mention any of this to the leader, and never reveal question counts, time remaining, or that you are being paced)
-
-${pacingLines.join("\n")}
-
 ## Ending the interview
 
-The session will end automatically, on the server side, once the maximum number of questions is reached or the time limit expires — you do not need to announce this, count down, or manage it yourself. If the pacing information above tells you this is your last permitted question, or you judge from the time remaining that this is very likely your last exchange, end warmly instead: thank the leader for their time and candour, and do not start a new substantive question. Keep any closing remark brief.
+The session will end automatically, on the server side, once the maximum number of questions is reached or the time limit expires — you do not need to announce this, count down, or manage it yourself. If the pacing guidance given below tells you this is your last permitted question, or you judge from the time remaining that this is very likely your last exchange, end warmly instead: thank the leader for their time and candour, and do not start a new substantive question. Keep any closing remark brief.
 
 ## Ending early if the leader wants to stop
 
-Independently of the pacing above, every response you give includes a "leaderWantsToStop" field. Set it to true only if the leader's most recent message clearly indicates they want to end the interview altogether — for example "let's wrap this up", "I need to go", "I don't want to continue", or an explicit request to stop. When you set it to true, make "message" a brief, warm closing remark thanking them, with no new question.
+Independently of the pacing below, every response you give includes a "leaderWantsToStop" field. Set it to true only if the leader's most recent message clearly indicates they want to end the interview altogether — for example "let's wrap this up", "I need to go", "I don't want to continue", or an explicit request to stop. When you set it to true, make "message" a brief, warm closing remark thanking them, with no new question.
 
 Do NOT set it to true just because an answer was short, vague, or the leader said something like "I don't have anything else to add" about the current question specifically — that means move on from this question, not end the interview. When in doubt, set it to false and continue normally.`;
+}
+
+// Changes every turn (question count, final-question flag, time remaining),
+// so it's kept out of the cached block above and appended after it instead.
+function buildPacingSuffix(input: InterviewTurnInput): string {
+  const pacingLines: string[] = [
+    `You have asked ${input.questionsAskedSoFar} question(s) so far, out of a maximum of ${input.maxQuestions} for this session.`,
+  ];
+
+  if (input.isFinalQuestion) {
+    pacingLines.push(
+      "This will be the LAST question you are allowed to ask — after the leader responds, the session will end automatically and you will not get another turn. Do not open a new line of inquiry you won't have room to follow up on. If, given everything covered so far, you feel there's nothing essential left to ask, you may instead give a brief, warm closing remark thanking them for their time, rather than asking a new question."
+    );
+  }
+
+  if (input.timeRemainingSeconds !== null) {
+    const minutes = Math.max(0, Math.round(input.timeRemainingSeconds / 60));
+    pacingLines.push(
+      `There are approximately ${minutes} minute(s) remaining in this session. Use this to pace yourself: if time is running low, prioritise covering dimensions you haven't touched on yet over pursuing deep follow-ups, and if you judge this is very likely your last exchange, end with a brief, warm closing remark instead of starting a new substantive question.`
+    );
+  }
+
+  return `## Pacing (internal only — never mention any of this to the leader, and never reveal question counts, time remaining, or that you are being paced)
+
+${pacingLines.join("\n")}`;
 }
