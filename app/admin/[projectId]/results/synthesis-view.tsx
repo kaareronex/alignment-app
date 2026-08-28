@@ -1,19 +1,17 @@
-import type { Synthesis, SynthesisPositionCategory } from "../../types";
+import type { Synthesis, SynthesisAlignmentLevel } from "../../types";
 import ExportMarkdownButton from "./export-markdown-button";
 
-const CATEGORY_LABELS: Record<SynthesisPositionCategory, string> = {
-  aligned: "Clearly aligned",
-  mixed: "Mixed / hedging",
-  concerned: "Clearly concerned",
-  not_addressed: "Didn't meaningfully address",
+const ALIGNMENT_LABELS: Record<SynthesisAlignmentLevel, string> = {
+  consensus: "Consensus",
+  partial: "Partial",
+  divided: "Divided",
 };
 
-const CATEGORY_ORDER: SynthesisPositionCategory[] = [
-  "aligned",
-  "mixed",
-  "concerned",
-  "not_addressed",
-];
+const ALIGNMENT_COLORS: Record<SynthesisAlignmentLevel, string> = {
+  consensus: "var(--im-blue-green)",
+  partial: "var(--im-yellow, #e4b73c)",
+  divided: "var(--im-deep-red, #451f23)",
+};
 
 export default function SynthesisView({
   projectName,
@@ -54,38 +52,52 @@ export default function SynthesisView({
           <h2 className="im-display text-lg" style={{ color: "var(--im-black)" }}>
             {dim.label}
           </h2>
+          <p className="text-sm font-bold" style={{ color: "var(--im-black)" }}>
+            {dim.keyPoint}
+          </p>
+
+          {dim.alignment ? (
+            <div className="flex items-start gap-2">
+              <span
+                className="shrink-0 rounded-[2px] px-2 py-0.5 text-xs font-bold uppercase text-white"
+                style={{ backgroundColor: ALIGNMENT_COLORS[dim.alignment.level] }}
+              >
+                {ALIGNMENT_LABELS[dim.alignment.level]}
+              </span>
+              <p className="text-sm" style={{ color: "var(--im-ash)" }}>
+                {dim.alignment.summary}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm italic" style={{ color: "var(--im-grey)" }}>
+              Too few participants to assess alignment.
+            </p>
+          )}
+
           <p className="text-sm" style={{ color: "var(--im-ash)" }}>{dim.narrative}</p>
 
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b" style={{ borderColor: "var(--im-blue-green-light)", color: "var(--im-grey)" }}>
-                <th className="py-1 pr-2 font-medium">Role</th>
-                {CATEGORY_ORDER.map((c) => (
-                  <th key={c} className="py-1 pr-2 font-medium">
-                    {CATEGORY_LABELS[c]}
-                  </th>
+          {dim.participantBases.length > 0 && (
+            <details>
+              <summary
+                className="cursor-pointer text-sm font-bold"
+                style={{ color: "var(--im-blue-green)" }}
+              >
+                See the basis for this ({dim.participantBases.length}{" "}
+                participant{dim.participantBases.length === 1 ? "" : "s"})
+              </summary>
+              <ul
+                className="mt-2 list-disc space-y-1 pl-5 text-sm"
+                style={{ color: "var(--im-ash)" }}
+              >
+                {dim.participantBases.map((basis, i) => (
+                  <li key={i}>
+                    <span className="font-bold">{basis.ref}: </span>
+                    {basis.paraphrase}
+                  </li>
                 ))}
-                <th className="py-1 font-medium">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dim.breakdown.map((row) => (
-                <tr
-                  key={row.roleLabel}
-                  className="border-b"
-                  style={{ borderColor: "var(--im-blue-green-near-white)", color: "var(--im-black)" }}
-                >
-                  <td className="py-1 pr-2">{row.roleLabel}</td>
-                  {CATEGORY_ORDER.map((c) => (
-                    <td key={c} className="py-1 pr-2">
-                      {row[c]}
-                    </td>
-                  ))}
-                  <td className="py-1">{row.total}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </ul>
+            </details>
+          )}
         </section>
       ))}
 

@@ -11,7 +11,12 @@ import {
   MAX_DIMENSIONS,
   type FramingDimension,
 } from "./framing-defaults";
-import type { Leader, SynthesisContent, SynthesisDimension } from "./types";
+import type {
+  Leader,
+  SynthesisContent,
+  SynthesisDimension,
+  SynthesisAlignmentLevel,
+} from "./types";
 import { getSynthesis, type SynthesisSessionInput } from "@/lib/ai/synthesis-model";
 
 export async function createProject() {
@@ -263,13 +268,6 @@ export async function generateSynthesis(projectId: string) {
     messagesBySession.set(m.session_id, list);
   }
 
-  const roleTagByRef = new Map(
-    sessionRows.map((row) => [
-      refByLeaderId.get(row.leader_id)!,
-      roleTagByLeaderId.get(row.leader_id) ?? OTHER_LEADERS_TAG,
-    ])
-  );
-
   const synthesisSessions: SynthesisSessionInput[] = sessionRows.map((row) => ({
     leaderId: refByLeaderId.get(row.leader_id)!,
     roleTag: roleTagByLeaderId.get(row.leader_id) ?? OTHER_LEADERS_TAG,
@@ -286,10 +284,17 @@ export async function generateSynthesis(projectId: string) {
     workshopDurationMinutes,
   });
 
-  const leaderIds = synthesisSessions.map((s) => s.leaderId);
   const dimensionLabelById = new Map(
     framingDimensions.map((d) => [d.id, d.label] as const)
   );
+
+  // Below 3 completed sessions, an alignment read (consensus/partial/divided)
+  // is statistically meaningless and inviting false confidence - hidden
+  // entirely rather than shown on too little data. This is a project-wide
+  // count, not per-dimension: even a dimension only 2 of 3 participants
+  // addressed still gets hidden, since the gate is about the size of the
+  // group being read, not how many happened to answer any one question.
+  const enoughSessionsForAlignment = sessionRows.length >= 3;
 
   const dimensions: SynthesisDimension[] = framingDimensions.map((dim) => {
     const dimOutput = output.dimensions.find((d) => d.dimensionId === dim.id);
@@ -299,34 +304,18 @@ export async function generateSynthesis(projectId: string) {
       );
     }
 
-    // Deterministic aggregation, not left to the model: group each
-    // participant's position by their (already-anonymised) role tag.
-    const breakdownByRole = new Map<
-      string,
-      { aligned: number; mixed: number; concerned: number; not_addressed: number }
-    >();
-    for (const leaderId of leaderIds) {
-      const roleTag = roleTagByRef.get(leaderId) ?? OTHER_LEADERS_TAG;
-      const position = dimOutput.positions.find((p) => p.leaderId === leaderId);
-      const category = position?.category ?? "not_addressed";
-      const entry =
-        breakdownByRole.get(roleTag) ??
-        { aligned: 0, mixed: 0, concerned: 0, not_addressed: 0 };
-      entry[category] += 1;
-      breakdownByRole.set(roleTag, entry);
-    }
-
     return {
       dimensionId: dim.id,
       label: dimensionLabelById.get(dim.id) ?? dim.label,
+      keyPoint: dimOutput.keyPoint,
       narrative: dimOutput.narrative,
-      breakdown: Array.from(breakdownByRole.entries()).map(
-        ([roleLabel, counts]) => ({
-          roleLabel,
-          ...counts,
-          total: counts.aligned + counts.mixed + counts.concerned + counts.not_addressed,
-        })
-      ),
+      alignment: enoughSessionsForAlignment
+        ? { level: dimOutput.alignmentLevel, summary: dimOutput.divergenceSummary }
+        : null,
+      participantBases: dimOutput.participantBases.map((p) => ({
+        ref: p.leaderId,
+        paraphrase: p.paraphrase,
+      })),
     };
   });
 
@@ -339,23 +328,27 @@ export async function generateSynthesis(projectId: string) {
   const dimensionByIdContent = new Map(dimensions.map((d) => [d.dimensionId, d]));
 
   // Deterministic time weighting, not left to the model: priorities tied to
-  // a dimension with more "concerned"/"mixed" spread get more workshop time
-  // than ones the team is already aligned on. Priorities with no single
-  // dimension (cross-cutting) get the average weight across all dimensions.
+  // a more divided dimension get more workshop time than ones the team is
+  // already aligned on. Priorities with no single dimension (cross-cutting),
+  // or generated when alignment itself is hidden (too few sessions), fall
+  // back to the average weight across dimensions that do have a reading.
+  const ALIGNMENT_WEIGHT: Record<SynthesisAlignmentLevel, number> = {
+    consensus: 1,
+    partial: 2,
+    divided: 3,
+  };
+
   function contestednessWeight(primaryDimensionId: string | null): number {
     if (primaryDimensionId) {
       const dim = dimensionByIdContent.get(primaryDimensionId);
-      if (dim) {
-        const concerned = dim.breakdown.reduce((sum, r) => sum + r.concerned, 0);
-        const mixed = dim.breakdown.reduce((sum, r) => sum + r.mixed, 0);
-        return Math.max(1, concerned * 2 + mixed);
+      if (dim?.alignment) {
+        return ALIGNMENT_WEIGHT[dim.alignment.level];
       }
     }
-    const weights = dimensions.map((dim) => {
-      const concerned = dim.breakdown.reduce((sum, r) => sum + r.concerned, 0);
-      const mixed = dim.breakdown.reduce((sum, r) => sum + r.mixed, 0);
-      return Math.max(1, concerned * 2 + mixed);
-    });
+    const weights = dimensions
+      .map((dim) => dim.alignment && ALIGNMENT_WEIGHT[dim.alignment.level])
+      .filter((w): w is number => w != null);
+    if (weights.length === 0) return 1;
     return weights.reduce((sum, w) => sum + w, 0) / weights.length;
   }
 

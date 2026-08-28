@@ -23,26 +23,27 @@ export type Leader = {
   role_label: string;
 };
 
-export type SynthesisPositionCategory =
-  | "aligned"
-  | "mixed"
-  | "concerned"
-  | "not_addressed";
+export type SynthesisAlignmentLevel = "consensus" | "partial" | "divided";
 
-export type SynthesisDimensionBreakdownEntry = {
-  roleLabel: string;
-  aligned: number;
-  mixed: number;
-  concerned: number;
-  not_addressed: number;
-  total: number;
+export type SynthesisAlignment = {
+  level: SynthesisAlignmentLevel;
+  summary: string;
+};
+
+export type SynthesisParticipantBasis = {
+  /** Opaque display ref, e.g. "Participant 1" - no role attached, by design. */
+  ref: string;
+  paraphrase: string;
 };
 
 export type SynthesisDimension = {
   dimensionId: string;
   label: string;
+  keyPoint: string;
   narrative: string;
-  breakdown: SynthesisDimensionBreakdownEntry[];
+  /** Null when fewer than 3 completed sessions exist - too few to assess. */
+  alignment: SynthesisAlignment | null;
+  participantBases: SynthesisParticipantBasis[];
 };
 
 export type SynthesisTopPriority = {

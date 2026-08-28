@@ -1,12 +1,11 @@
 "use client";
 
-import type { Synthesis, SynthesisPositionCategory } from "../../types";
+import type { Synthesis, SynthesisAlignmentLevel } from "../../types";
 
-const CATEGORY_LABELS: Record<SynthesisPositionCategory, string> = {
-  aligned: "Clearly aligned",
-  mixed: "Mixed / hedging",
-  concerned: "Clearly concerned",
-  not_addressed: "Didn't meaningfully address",
+const ALIGNMENT_LABELS: Record<SynthesisAlignmentLevel, string> = {
+  consensus: "Consensus",
+  partial: "Partial",
+  divided: "Divided",
 };
 
 function toMarkdown(projectName: string, synthesis: Synthesis): string {
@@ -31,16 +30,30 @@ function toMarkdown(projectName: string, synthesis: Synthesis): string {
   for (const dim of synthesis.content.dimensions) {
     lines.push(`## ${dim.label}`);
     lines.push("");
-    lines.push(dim.narrative);
+    lines.push(`**${dim.keyPoint}**`);
     lines.push("");
-    lines.push("| Role | " + Object.values(CATEGORY_LABELS).join(" | ") + " | Total |");
-    lines.push("| --- | --- | --- | --- | --- | --- |");
-    for (const row of dim.breakdown) {
+    if (dim.alignment) {
       lines.push(
-        `| ${row.roleLabel} | ${row.aligned} | ${row.mixed} | ${row.concerned} | ${row.not_addressed} | ${row.total} |`
+        `**Alignment: ${ALIGNMENT_LABELS[dim.alignment.level]}** — ${dim.alignment.summary}`
       );
+    } else {
+      lines.push("*Too few participants to assess alignment.*");
     }
     lines.push("");
+    lines.push(dim.narrative);
+    lines.push("");
+    if (dim.participantBases.length > 0) {
+      lines.push(
+        `<details><summary>See the basis for this (${dim.participantBases.length} participant${dim.participantBases.length === 1 ? "" : "s"})</summary>`
+      );
+      lines.push("");
+      for (const basis of dim.participantBases) {
+        lines.push(`- **${basis.ref}:** ${basis.paraphrase}`);
+      }
+      lines.push("");
+      lines.push("</details>");
+      lines.push("");
+    }
   }
 
   const plan = synthesis.content.workshopPlan;

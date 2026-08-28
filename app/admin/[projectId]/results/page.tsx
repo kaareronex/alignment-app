@@ -38,15 +38,22 @@ export default async function ProjectResultsPage({
   if (countError) throw new Error(countError.message);
   if (!project) notFound();
 
-  // A synthesis row generated before the workshop-plan field existed has an
-  // old-shaped content blob - since synthesis is always fully overwritten
-  // (never migrated in place), treat it as stale rather than render a
-  // half-formed page. The "Regenerate" button still shows, since a row
-  // does exist.
+  // A synthesis row generated before a content-shape change (workshop plan,
+  // then alignment/basis) has an old-shaped content blob - since synthesis
+  // is always fully overwritten (never migrated in place), treat it as
+  // stale rather than render a half-formed page. The "Regenerate" button
+  // still shows, since a row does exist.
+  const dimensions = (synthesis?.content as { dimensions?: unknown })?.dimensions;
   const hasCurrentShapeSynthesis =
     !!synthesis &&
     Array.isArray((synthesis.content as { topPriorities?: unknown })?.topPriorities) &&
-    !!(synthesis.content as { workshopPlan?: unknown })?.workshopPlan;
+    !!(synthesis.content as { workshopPlan?: unknown })?.workshopPlan &&
+    Array.isArray(dimensions) &&
+    dimensions.every(
+      (d) =>
+        typeof (d as { keyPoint?: unknown }).keyPoint === "string" &&
+        Array.isArray((d as { participantBases?: unknown }).participantBases)
+    );
 
   return (
     <div className="space-y-6">

@@ -50,20 +50,22 @@ export type SynthesisInput = {
   workshopDurationMinutes: number;
 };
 
-export const SYNTHESIS_POSITION_CATEGORIES = [
-  "aligned",
-  "mixed",
-  "concerned",
-  "not_addressed",
-] as const;
+export const SYNTHESIS_ALIGNMENT_LEVELS = ["consensus", "partial", "divided"] as const;
 
-export type SynthesisPositionCategory =
-  (typeof SYNTHESIS_POSITION_CATEGORIES)[number];
+export type SynthesisAlignmentLevel = (typeof SYNTHESIS_ALIGNMENT_LEVELS)[number];
+
+export type SynthesisParticipantBasisOutput = {
+  leaderId: string;
+  paraphrase: string;
+};
 
 export type SynthesisDimensionOutput = {
   dimensionId: string;
+  keyPoint: string;
   narrative: string;
-  positions: { leaderId: string; category: SynthesisPositionCategory }[];
+  alignmentLevel: SynthesisAlignmentLevel;
+  divergenceSummary: string;
+  participantBases: SynthesisParticipantBasisOutput[];
 };
 
 export type SynthesisTopPriorityOutput = {
@@ -96,28 +98,43 @@ function buildSynthesisSchema(
   const dimIds = dimensions.map((d) => d.id) as [string, ...string[]];
   const lIds = leaderIds as [string, ...string[]];
 
-  const positionSchema = z.object({
+  const participantBasisSchema = z.object({
     leaderId: z
       .enum(lIds)
-      .describe("The participant ref this position belongs to."),
-    category: z
-      .enum(SYNTHESIS_POSITION_CATEGORIES)
+      .describe("The participant ref this paraphrase belongs to."),
+    paraphrase: z
+      .string()
       .describe(
-        "This participant's position on this dimension specifically: 'aligned' (clearly in line with the emerging consensus), 'mixed' (hedging, partial, or genuinely in-between), 'concerned' (clearly worried, opposed, or flagging a problem), or 'not_addressed' (the interview never meaningfully touched this dimension for this participant)."
+        "A short (1-2 sentence), neutral paraphrase of this participant's position on this dimension specifically - never a verbatim quote and never their distinctive phrasing. Flatten their wording into plain, uniform language: someone reading it should be able to verify the narrative against it without recognising anyone's voice or writing style."
       ),
   });
 
   const dimensionSchema = z.object({
     dimensionId: z.enum(dimIds),
+    keyPoint: z
+      .string()
+      .describe(
+        "One sentence capturing the single most important finding on this dimension - skimmable on its own, before anyone reads the fuller narrative below it."
+      ),
     narrative: z
       .string()
       .describe(
         "3-6 sentences, in English (UK), on what's really being said on this dimension: where there's genuine consensus, where there's disagreement, and anything participants seem to be dancing around or avoiding. Refer to participants only by the role tag they were given below - never invent a name or a more specific title than the tag provided."
       ),
-    positions: z
-      .array(positionSchema)
+    alignmentLevel: z
+      .enum(SYNTHESIS_ALIGNMENT_LEVELS)
       .describe(
-        `Exactly one entry per participant ref, covering all of: ${leaderIds.join(", ")}.`
+        "How much participants' SUBSTANTIVE positions actually converge or diverge on this dimension specifically - this is about alignment, not sentiment. Several participants can all be worried or all be positive and still be in full agreement with each other (consensus); or split for entirely different reasons even if none of them sound alarmed (divided). 'consensus' = positions substantively agree, even if phrased differently; 'partial' = general agreement with one or two genuine points of difference, or a lopsided split; 'divided' = a real, roughly even split, or fundamentally incompatible views on what matters."
+      ),
+    divergenceSummary: z
+      .string()
+      .describe(
+        'One sentence describing what the divergence actually consists of if alignmentLevel is "partial" or "divided" (e.g. "broad agreement on the goal, but a real split on whether speed requires clearer hierarchy"), or one sentence confirming what participants actually agree on if alignmentLevel is "consensus".'
+      ),
+    participantBases: z
+      .array(participantBasisSchema)
+      .describe(
+        "One entry per participant whose response this dimension's narrative and alignmentLevel actually draw on - omit any participant who didn't meaningfully address this dimension. This lets a reader check your interpretation without seeing raw transcripts, so every paraphrase must be genuinely neutral, never quoting or mimicking how the participant actually phrased it."
       ),
   });
 
@@ -268,7 +285,7 @@ ${transcriptsBlock}
 
 ## What to produce
 
-For EACH dimension listed above, write a short qualitative narrative (consensus vs disagreement vs what's being avoided) and classify every single participant ref's position on that dimension specifically.
+For EACH dimension listed above: write a one-sentence key point, a short qualitative narrative (consensus vs disagreement vs what's being avoided), an alignment assessment (see alignmentLevel and divergenceSummary above - judge convergence of substantive positions, not how positive or negative people sound), and a neutral paraphrase of every participant ref who meaningfully addressed it, so the underlying basis for your narrative can be checked without anyone's actual words or phrasing being exposed.
 
 Then produce the top priorities: 3-6 concrete priorities or open questions this team should discuss first to reach alignment, drawing across all dimensions - not a per-dimension summary restated, but what matters most given the whole picture, each tagged with the single dimension it relates to most (or null if genuinely cross-cutting).
 
