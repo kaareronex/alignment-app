@@ -47,6 +47,12 @@ export default function VoiceInputButton({
   const [isListening, setIsListening] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  // Bumped every time a recognition session is stopped/invalidated, so a
+  // result that arrives after the fact (recognition.stop() doesn't end the
+  // session synchronously - a trailing onresult/onend can still fire once
+  // it finishes processing buffered audio) can be told apart from one that
+  // still belongs to the session currently driving the answer field.
+  const activeRecognitionIdRef = useRef(0);
 
   useEffect(() => {
     // Browser API support can only be checked client-side; this is the
@@ -58,9 +64,22 @@ export default function VoiceInputButton({
     };
   }, []);
 
+  // The parent disables this button while the answer is being submitted -
+  // stop listening then too, and invalidate the session so a trailing
+  // result can't repopulate the field right after it's cleared for the
+  // next question. Not setting isListening here directly: stop() triggers
+  // onend asynchronously, which updates it.
+  useEffect(() => {
+    if (!disabled) return;
+    activeRecognitionIdRef.current++;
+    recognitionRef.current?.stop();
+  }, [disabled]);
+
   function handleToggle() {
     if (isListening) {
+      activeRecognitionIdRef.current++;
       recognitionRef.current?.stop();
+      setIsListening(false);
       return;
     }
 
@@ -73,10 +92,12 @@ export default function VoiceInputButton({
     recognition.continuous = true;
     recognition.interimResults = true;
 
+    const recognitionId = ++activeRecognitionIdRef.current;
     const startingText = baseTextRef.current;
     let finalTranscript = "";
 
     recognition.onresult = (event) => {
+      if (activeRecognitionIdRef.current !== recognitionId) return;
       let interimTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
@@ -94,6 +115,8 @@ export default function VoiceInputButton({
     };
 
     recognition.onerror = (event) => {
+      setIsListening(false);
+      if (activeRecognitionIdRef.current !== recognitionId) return;
       if (event.error === "not-allowed" || event.error === "permission-denied") {
         setMicError(
           "Microphone access was blocked. Allow it in your browser's site settings to use voice input."
@@ -101,7 +124,6 @@ export default function VoiceInputButton({
       } else if (event.error !== "no-speech" && event.error !== "aborted") {
         setMicError("Voice input stopped unexpectedly. You can type instead.");
       }
-      setIsListening(false);
     };
 
     recognition.onend = () => setIsListening(false);

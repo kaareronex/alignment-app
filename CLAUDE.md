@@ -115,13 +115,23 @@ itself.
   `README.md` for the full list of required env vars.
 - All UI copy and admin-facing generated output (synthesis, workshop plan)
   is English (UK). The interview conversation itself is the one exception:
-  it auto-detects and adapts to whatever language the participant answers
-  in (see `lib/ai/interview-model.ts`), defaulting to English (UK) until a
-  clear signal appears. Interview quality — especially nuanced push-back —
-  is strongest in English and major European languages; lower-resource
-  languages are supported but may see slightly less sharp follow-up
-  judgement. Not a blocker, just worth knowing when reviewing a transcript
-  in an unfamiliar language.
+  the participant explicitly picks the interview language from a broad
+  world-language list (`lib/languages.ts`) on its own screen, after
+  choosing their name and before the first question, and it's stored as
+  `sessions.language_code`. The model (`lib/ai/interview-model.ts`)
+  conducts the whole interview — every question, follow-up, push-back, and
+  the closing remark — in that language from the very first message, no
+  longer guessing from the first answer. It still follows the participant
+  gracefully if they answer in a different language than they picked,
+  rather than rigidly enforcing the original choice; sessions created
+  before this selection step existed have a null `language_code` and fall
+  back to the older detect-from-first-answer behaviour. The voice-input
+  microphone button (`app/interview/[projectId]/session/voice-input-button.tsx`)
+  is tuned to the same selected language code. Interview quality —
+  especially nuanced push-back — is strongest in English and major
+  European languages; lower-resource languages are supported but may see
+  slightly less sharp follow-up judgement. Not a blocker, just worth
+  knowing when reviewing a transcript in an unfamiliar language.
 - "Participant" is the term used everywhere a person is shown or referred
   to in generated output, replacing the older "leader" wording, since the
   interview pool now extends beyond literal leaders to broader staff and

@@ -8,6 +8,11 @@ import {
 } from "@/lib/interview-session-cookie";
 import { getNextInterviewTurn } from "@/lib/ai/interview-model";
 import type { FramingDimension } from "@/app/admin/framing-defaults";
+import {
+  INTERVIEW_LANGUAGES,
+  DEFAULT_INTERVIEW_LANGUAGE_CODE,
+  getInterviewLanguageLabel,
+} from "@/lib/languages";
 
 export type StartSessionResult =
   | { error: string; alreadyCompleted?: false }
@@ -16,11 +21,18 @@ export type StartSessionResult =
 
 export async function startInterviewSession(
   projectId: string,
-  leaderId: string
+  leaderId: string,
+  languageCode?: string
 ): Promise<StartSessionResult> {
   if (!projectId || !leaderId) {
     return { error: "Missing project or participant." };
   }
+
+  const resolvedLanguageCode = INTERVIEW_LANGUAGES.some(
+    (l) => l.code === languageCode
+  )
+    ? (languageCode as string)
+    : DEFAULT_INTERVIEW_LANGUAGE_CODE;
 
   const supabase = createAdminClient();
 
@@ -71,6 +83,7 @@ export async function startInterviewSession(
       leader_id: leaderId,
       status: isOpenMode ? "in_progress" : "not_started",
       started_at: isOpenMode ? nowIso : null,
+      language_code: resolvedLanguageCode,
     })
     .select("id")
     .single();
@@ -114,7 +127,9 @@ export async function advanceInterview(
 
   const { data: session, error: sessionError } = await supabase
     .from("sessions")
-    .select("id, project_id, leader_id, status, started_at, question_count")
+    .select(
+      "id, project_id, leader_id, status, started_at, question_count, language_code"
+    )
     .eq("id", sessionId)
     .maybeSingle();
   if (sessionError) throw new Error(sessionError.message);
@@ -241,6 +256,7 @@ export async function advanceInterview(
     maxQuestions: project.max_questions,
     isFinalQuestion,
     timeRemainingSeconds,
+    interviewLanguageLabel: getInterviewLanguageLabel(session.language_code),
   });
 
   const newQuestionNumber = questionsAskedSoFar + 1;

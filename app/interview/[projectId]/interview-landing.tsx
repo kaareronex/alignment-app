@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { startInterviewSession } from "../actions";
 import IntroScreen from "./intro-screen";
+import {
+  INTERVIEW_LANGUAGES,
+  DEFAULT_INTERVIEW_LANGUAGE_CODE,
+} from "@/lib/languages";
 
 type ProjectPublicState = {
   id: string;
@@ -38,6 +42,10 @@ export default function InterviewLanding({
 }) {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [selectedLeaderId, setSelectedLeaderId] = useState("");
+  const [pickerStep, setPickerStep] = useState<"name" | "language">("name");
+  const [languageCode, setLanguageCode] = useState(
+    DEFAULT_INTERVIEW_LANGUAGE_CODE
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [alreadyCompleted, setAlreadyCompleted] = useState(
@@ -107,7 +115,11 @@ export default function InterviewLanding({
     setIsSubmitting(true);
     setSubmitError(null);
     try {
-      const result = await startInterviewSession(projectId, selectedLeaderId);
+      const result = await startInterviewSession(
+        projectId,
+        selectedLeaderId,
+        languageCode
+      );
       if (result?.alreadyCompleted) {
         setAlreadyCompleted(true);
         return;
@@ -157,28 +169,67 @@ export default function InterviewLanding({
     );
   }
 
+  if (pickerStep === "name") {
+    return (
+      <div className="max-w-sm space-y-4">
+        <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
+          {state.project.name}
+        </h1>
+
+        <div>
+          <label className="im-label">Select your name</label>
+          <select
+            value={selectedLeaderId}
+            onChange={(e) => setSelectedLeaderId(e.target.value)}
+            className="im-input"
+          >
+            <option value="">Choose your name…</option>
+            {state.leaders.map((leader) => (
+              <option
+                key={leader.id}
+                value={leader.id}
+                style={leader.has_completed ? { color: "var(--im-grey)" } : undefined}
+              >
+                {leader.name} — {leader.role_label}
+                {leader.has_completed ? " (completed)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setPickerStep("language")}
+          disabled={!selectedLeaderId}
+          className="btn-primary"
+        >
+          Continue
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-sm space-y-4">
       <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
-        {state.project.name}
+        Choose your language
       </h1>
+      <p style={{ color: "var(--im-ash)" }}>
+        The interviewer will conduct the whole conversation in this language
+        from the first question onwards. If you end up answering in a
+        different language, it will follow along naturally.
+      </p>
 
       <div>
-        <label className="im-label">Select your name</label>
+        <label className="im-label">Interview language</label>
         <select
-          value={selectedLeaderId}
-          onChange={(e) => setSelectedLeaderId(e.target.value)}
+          value={languageCode}
+          onChange={(e) => setLanguageCode(e.target.value)}
           className="im-input"
         >
-          <option value="">Choose your name…</option>
-          {state.leaders.map((leader) => (
-            <option
-              key={leader.id}
-              value={leader.id}
-              style={leader.has_completed ? { color: "var(--im-grey)" } : undefined}
-            >
-              {leader.name} — {leader.role_label}
-              {leader.has_completed ? " (completed)" : ""}
+          {INTERVIEW_LANGUAGES.map((lang) => (
+            <option key={lang.code} value={lang.code}>
+              {lang.label}
             </option>
           ))}
         </select>
@@ -190,14 +241,24 @@ export default function InterviewLanding({
         </p>
       )}
 
-      <button
-        type="button"
-        onClick={handleConfirm}
-        disabled={!selectedLeaderId || isSubmitting}
-        className="btn-primary"
-      >
-        {isSubmitting ? "Please wait…" : "Confirm"}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setPickerStep("name")}
+          disabled={isSubmitting}
+          className="btn-text"
+        >
+          Back
+        </button>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={isSubmitting}
+          className="btn-primary"
+        >
+          {isSubmitting ? "Please wait…" : "Confirm"}
+        </button>
+      </div>
     </div>
   );
 }

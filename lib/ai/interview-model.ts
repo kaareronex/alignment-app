@@ -48,6 +48,13 @@ export type InterviewTurnInput = {
   isFinalQuestion: boolean;
   /** Null if this project has no time limit. */
   timeRemainingSeconds: number | null;
+  /**
+   * English name of the language the participant explicitly chose before
+   * the interview began (e.g. "Danish"), or null for sessions created
+   * before this selection step existed - those fall back to the older
+   * detect-from-first-answer behaviour.
+   */
+  interviewLanguageLabel: string | null;
 };
 
 export type InterviewTurnOutput = {
@@ -65,7 +72,7 @@ function buildInterviewTurnSchema(dimensions: FramingDimension[]) {
     message: z
       .string()
       .describe(
-        "What you say to the participant next - a question, follow-up, or closing remark, in whatever language you've detected them using. This is the ONLY field the participant ever sees."
+        "What you say to the participant next - a question, follow-up, or closing remark, in the language you are currently conducting this interview in. This is the ONLY field the participant ever sees."
       ),
     leaderWantsToStop: z
       .boolean()
@@ -196,7 +203,13 @@ Role: ${input.leaderRoleLabel}
 
 ## Language
 
-Detect the language the participant is actually answering in, starting from their first substantive response, and from then on conduct the whole conversation - every question, follow-up, moment of respectful push-back, and the closing remark - in that same language. The opening question (before they've said anything yet) and any answer too short or ambiguous to reliably signal a language (e.g. "yes", "ok", a single word) don't count as a signal - default to English (UK) until a clearer answer establishes one. If the participant switches language partway through, follow them there too rather than staying locked to whichever language you detected first. This only changes what language you speak to the participant in: the framing dimensions and the pacing guidance given to you below are written in English (UK) by the admin who configured this project, and you should keep reading and reasoning over them normally regardless of what language you're currently speaking.
+${
+  input.interviewLanguageLabel
+    ? `The participant explicitly chose ${input.interviewLanguageLabel} as the language for this interview before it began. Conduct the whole conversation - every question, follow-up, moment of respectful push-back, and the closing remark - in ${input.interviewLanguageLabel} starting from your very first message. Do not wait for a signal from their answers and do not default to English first - open directly in ${input.interviewLanguageLabel}. If the participant nonetheless answers in a different language, follow them there naturally rather than rigidly enforcing their original choice, but return to ${input.interviewLanguageLabel} as the default if they switch back or it's ambiguous.`
+    : `Detect the language the participant is actually answering in, starting from their first substantive response, and from then on conduct the whole conversation - every question, follow-up, moment of respectful push-back, and the closing remark - in that same language. The opening question (before they've said anything yet) and any answer too short or ambiguous to reliably signal a language (e.g. "yes", "ok", a single word) don't count as a signal - default to English (UK) until a clearer answer establishes one. If the participant switches language partway through, follow them there too rather than staying locked to whichever language you detected first.`
+}
+
+This only changes what language you speak to the participant in: the framing dimensions and the pacing guidance given to you below are written in English (UK) by the admin who configured this project, and you should keep reading and reasoning over them normally regardless of what language you're currently speaking.
 
 ## Organisation's strategic context
 

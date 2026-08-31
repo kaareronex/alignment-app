@@ -28,8 +28,9 @@ export default function IntroScreen({
           it either.
         </p>
         <p style={{ color: "var(--im-ash)" }}>
-          You&apos;re welcome to answer in your own language — the
-          interviewer will understand and continue the conversation in it.
+          On the next screen, you&apos;ll choose the language for your
+          interview — the AI interviewer will conduct the whole conversation
+          in it from the first question onwards.
         </p>
       </div>
 

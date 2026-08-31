@@ -31,7 +31,7 @@ export default async function InterviewSessionPage({
   ] = await Promise.all([
     supabase
       .from("sessions")
-      .select("id, project_id, status, started_at")
+      .select("id, project_id, status, started_at, language_code")
       .eq("id", sessionId)
       .maybeSingle(),
     supabase
@@ -76,6 +76,7 @@ export default async function InterviewSessionPage({
       timeLimitMinutes={project.time_limit_minutes}
       sessionStartedAt={session.started_at}
       dimensionIds={dimensionIds}
+      languageCode={session.language_code}
     />
   );
 }

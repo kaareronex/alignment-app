@@ -6,7 +6,6 @@ import {
   endInterviewEarly,
   type InterviewTurnResponse,
 } from "../../actions";
-import { guessLanguageTag } from "@/lib/voice-lang";
 import VoiceInputButton from "./voice-input-button";
 
 type Phase =
@@ -48,9 +47,11 @@ function ProgressBar({
 export default function InterviewConversation({
   projectId,
   dimensionIds,
+  languageCode,
 }: {
   projectId: string;
   dimensionIds: string[];
+  languageCode: string | null;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [answer, setAnswer] = useState("");
@@ -175,11 +176,12 @@ export default function InterviewConversation({
             rows={5}
             placeholder="Type your answer…"
             autoFocus
+            disabled={isSubmitting}
             className="im-input flex-1"
           />
           <VoiceInputButton
             lang={
-              guessLanguageTag(phase.message) ??
+              languageCode ??
               (typeof navigator !== "undefined" ? navigator.language : "en-GB")
             }
             disabled={isSubmitting}
