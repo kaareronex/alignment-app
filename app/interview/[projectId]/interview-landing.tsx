@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { startInterviewSession } from "../actions";
 import IntroScreen from "./intro-screen";
-import {
-  INTERVIEW_LANGUAGES,
-  DEFAULT_INTERVIEW_LANGUAGE_CODE,
-} from "@/lib/languages";
+import ReadinessStep from "./readiness-step";
+import { DEFAULT_INTERVIEW_LANGUAGE_CODE } from "@/lib/languages";
 
 type ProjectPublicState = {
   id: string;
@@ -42,7 +40,7 @@ export default function InterviewLanding({
 }) {
   const [state, setState] = useState<LoadState>({ phase: "loading" });
   const [selectedLeaderId, setSelectedLeaderId] = useState("");
-  const [pickerStep, setPickerStep] = useState<"name" | "language">("name");
+  const [pickerStep, setPickerStep] = useState<"name" | "readiness">("name");
   const [languageCode, setLanguageCode] = useState(
     DEFAULT_INTERVIEW_LANGUAGE_CODE
   );
@@ -199,7 +197,7 @@ export default function InterviewLanding({
 
         <button
           type="button"
-          onClick={() => setPickerStep("language")}
+          onClick={() => setPickerStep("readiness")}
           disabled={!selectedLeaderId}
           className="btn-primary"
         >
@@ -210,55 +208,13 @@ export default function InterviewLanding({
   }
 
   return (
-    <div className="max-w-sm space-y-4">
-      <h1 className="im-display text-2xl" style={{ color: "var(--im-black)" }}>
-        Choose your language
-      </h1>
-      <p style={{ color: "var(--im-ash)" }}>
-        The interviewer will conduct the whole conversation in this language
-        from the first question onwards. If you end up answering in a
-        different language, it will follow along naturally.
-      </p>
-
-      <div>
-        <label className="im-label">Interview language</label>
-        <select
-          value={languageCode}
-          onChange={(e) => setLanguageCode(e.target.value)}
-          className="im-input"
-        >
-          {INTERVIEW_LANGUAGES.map((lang) => (
-            <option key={lang.code} value={lang.code}>
-              {lang.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {submitError && (
-        <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
-          {submitError}
-        </p>
-      )}
-
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setPickerStep("name")}
-          disabled={isSubmitting}
-          className="btn-text"
-        >
-          Back
-        </button>
-        <button
-          type="button"
-          onClick={handleConfirm}
-          disabled={isSubmitting}
-          className="btn-primary"
-        >
-          {isSubmitting ? "Please wait…" : "Confirm"}
-        </button>
-      </div>
-    </div>
+    <ReadinessStep
+      languageCode={languageCode}
+      onLanguageChange={setLanguageCode}
+      onBack={() => setPickerStep("name")}
+      onContinue={handleConfirm}
+      isSubmitting={isSubmitting}
+      submitError={submitError}
+    />
   );
 }

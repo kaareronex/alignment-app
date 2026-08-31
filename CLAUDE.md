@@ -116,9 +116,17 @@ itself.
 - All UI copy and admin-facing generated output (synthesis, workshop plan)
   is English (UK). The interview conversation itself is the one exception:
   the participant explicitly picks the interview language from a broad
-  world-language list (`lib/languages.ts`) on its own screen, after
-  choosing their name and before the first question, and it's stored as
-  `sessions.language_code`. The model (`lib/ai/interview-model.ts`)
+  world-language list (`lib/languages.ts`), after choosing their name and
+  before the first question, and it's stored as `sessions.language_code`.
+  This selection lives on a combined "Let's get you ready" screen
+  (`app/interview/[projectId]/readiness-step.tsx`) alongside two
+  informational, non-blocking checks: a connection check that fires
+  several rapid requests at the deliberately trivial `/api/ping` route to
+  gauge round-trip time and jitter, and a microphone check that requests
+  `getUserMedia` and shows a live volume-level meter - both purely
+  advisory, so a flagged connection or denied/missing microphone never
+  blocks continuing (typing always works regardless). The model
+  (`lib/ai/interview-model.ts`)
   conducts the whole interview — every question, follow-up, push-back, and
   the closing remark — in that language from the very first message, no
   longer guessing from the first answer. It still follows the participant
