@@ -63,6 +63,7 @@ export default function InterviewConversation({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [touchedDimensionIds, setTouchedDimensionIds] = useState<string[]>([]);
   const [isEnding, setIsEnding] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
 
   function applyResult(result: InterviewTurnResponse) {
     if (result.status === "completed") {
@@ -106,15 +107,8 @@ export default function InterviewConversation({
     }
   }
 
-  async function handleEndEarly() {
+  async function handleConfirmEnd() {
     if (isEnding) return;
-    if (
-      !confirm(
-        "End this interview now? You won't be able to continue it afterwards."
-      )
-    ) {
-      return;
-    }
     setIsEnding(true);
     try {
       const result = await endInterviewEarly(projectId);
@@ -125,6 +119,7 @@ export default function InterviewConversation({
       );
     } finally {
       setIsEnding(false);
+      setShowEndConfirm(false);
     }
   }
 
@@ -194,24 +189,51 @@ export default function InterviewConversation({
             {submitError}
           </p>
         )}
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={!answer.trim() || isSubmitting}
-            className="btn-primary"
-          >
-            {isSubmitting ? "Sending…" : "Send"}
-          </button>
+        <button
+          type="submit"
+          disabled={!answer.trim() || isSubmitting}
+          className="btn-primary"
+        >
+          {isSubmitting ? "Sending…" : "Send"}
+        </button>
+      </form>
+
+      <div className="mt-8 border-t pt-4" style={{ borderColor: "var(--im-blue-green-light)" }}>
+        {showEndConfirm ? (
+          <div className="space-y-2">
+            <p className="text-sm" style={{ color: "var(--im-ash)" }}>
+              Are you sure? You won&apos;t be able to continue this interview
+              afterwards.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleConfirmEnd}
+                disabled={isEnding}
+                className="btn-secondary disabled:opacity-50"
+              >
+                {isEnding ? "Ending…" : "Yes, end interview"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEndConfirm(false)}
+                disabled={isEnding}
+                className="btn-text disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
           <button
             type="button"
-            onClick={handleEndEarly}
-            disabled={isEnding}
-            className="btn-text disabled:opacity-50"
+            onClick={() => setShowEndConfirm(true)}
+            className="btn-secondary"
           >
-            {isEnding ? "Ending…" : "End interview early"}
+            End Interview
           </button>
-        </div>
-      </form>
+        )}
+      </div>
     </div>
   );
 }

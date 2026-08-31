@@ -58,21 +58,43 @@ export type InterviewTurnInput = {
 };
 
 export type InterviewTurnOutput = {
+  /** leadIn + nextQuestion combined - the full text shown to the participant. */
   message: string;
   leaderWantsToStop: boolean;
   /** Id of the dimension this exchange primarily addressed, or null. */
   dimensionAddressed: string | null;
 };
 
+// Question marks across the languages this app supports (lib/languages.ts) -
+// used to sanity-check that "nextQuestion" actually reads as a question
+// rather than the model just reflecting on the answer with nothing new
+// asked. Not exhaustive linguistics, just enough to catch the common case.
+const QUESTION_MARK_CHARS = ["?", "？", "؟"];
+
+function looksLikeQuestion(text: string): boolean {
+  return QUESTION_MARK_CHARS.some((mark) => text.includes(mark));
+}
+
 function buildInterviewTurnSchema(dimensions: FramingDimension[]) {
   const ids = dimensions.map((d) => d.id) as [string, ...string[]];
   const legend = dimensions.map((d) => `"${d.id}" (${d.label})`).join(", ");
 
   return z.object({
-    message: z
+    leadIn: z
+      .string()
+      .nullable()
+      .describe(
+        "An optional brief (at most one or two sentences) acknowledgment of or reflection on what the participant just said, shown right before nextQuestion. Null if you're moving straight to the question with no lead-in. This field alone is never enough on its own - it must not contain your actual question."
+      ),
+    nextQuestion: z
       .string()
       .describe(
-        "What you say to the participant next - a question, follow-up, or closing remark, in the language you are currently conducting this interview in. This is the ONLY field the participant ever sees."
+        "REQUIRED, never empty. Either (a) the next genuine, direct question you're asking the participant, ending in a question mark - not a restatement of their last answer with nothing new asked - or (b), ONLY when isClosingRemark is true, a brief warm closing remark ending the interview instead of a question."
+      ),
+    isClosingRemark: z
+      .boolean()
+      .describe(
+        "True only if nextQuestion above is a closing remark ending the interview rather than a real question - see the Ending sections for when this applies. False on every normal turn, including ones with a leadIn."
       ),
     leaderWantsToStop: z
       .boolean()
@@ -83,15 +105,23 @@ function buildInterviewTurnSchema(dimensions: FramingDimension[]) {
       .enum(ids)
       .nullable()
       .describe(
-        `The id of the dimension this exchange (your message plus what you're following up on) primarily addressed, or null if it doesn't clearly focus on one. Valid ids: ${legend}.`
+        `The id of the dimension this exchange (your question plus what you're following up on) primarily addressed, or null if it doesn't clearly focus on one. Valid ids: ${legend}.`
       ),
   });
 }
 
-export async function getNextInterviewTurn(
+type RawTurn = {
+  leadIn: string | null;
+  nextQuestion: string;
+  isClosingRemark: boolean;
+  leaderWantsToStop: boolean;
+  dimensionAddressed: string | null;
+};
+
+async function requestInterviewTurn(
+  client: Anthropic,
   input: InterviewTurnInput
-): Promise<InterviewTurnOutput> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+): Promise<RawTurn> {
   const format = zodOutputFormat(buildInterviewTurnSchema(input.framingDimensions));
 
   // Using create() instead of parse() so stop_reason can be checked before
@@ -138,10 +168,10 @@ export async function getNextInterviewTurn(
   // schema still guides the model via the API's structured-output
   // constraint, but it isn't airtight in practice - a handful of live
   // load-test runs produced a dimensionAddressed value outside the given
-  // ids, which crashed the whole turn even though message and
-  // leaderWantsToStop were both fine. dimensionAddressed only drives an
-  // internal progress indicator, so an unrecognised value is treated as
-  // "no dimension identified" instead of losing the participant's turn over it.
+  // ids, which crashed the whole turn even though the rest of the response
+  // was fine. dimensionAddressed only drives an internal progress
+  // indicator, so an unrecognised value is treated as "no dimension
+  // identified" instead of losing the participant's turn over it.
   let rawParsed: unknown;
   try {
     rawParsed = JSON.parse(textBlock.text);
@@ -154,9 +184,9 @@ export async function getNextInterviewTurn(
   if (
     typeof rawParsed !== "object" ||
     rawParsed === null ||
-    typeof (rawParsed as Record<string, unknown>).message !== "string"
+    typeof (rawParsed as Record<string, unknown>).nextQuestion !== "string"
   ) {
-    throw new Error("Interview model response was missing a usable message.");
+    throw new Error("Interview model response was missing a usable nextQuestion.");
   }
 
   const record = rawParsed as Record<string, unknown>;
@@ -168,9 +198,48 @@ export async function getNextInterviewTurn(
       : null;
 
   return {
-    message: (record.message as string).trim(),
+    leadIn:
+      typeof record.leadIn === "string" && record.leadIn.trim() ? record.leadIn.trim() : null,
+    nextQuestion: (record.nextQuestion as string).trim(),
+    isClosingRemark: record.isClosingRemark === true,
     leaderWantsToStop: record.leaderWantsToStop === true,
     dimensionAddressed,
+  };
+}
+
+// The structured-output schema constrains nextQuestion to be present, but
+// not to actually BE a question - a handful of live runs produced a
+// response that only reflected on the participant's last answer ("That
+// makes sense, thanks for sharing that.") with nothing new asked, silently
+// stalling the interview. Closing remarks are exempt: by definition they
+// don't ask anything.
+function hasUsableQuestionOrClosing(turn: RawTurn): boolean {
+  if (!turn.nextQuestion) return false;
+  return turn.isClosingRemark || looksLikeQuestion(turn.nextQuestion);
+}
+
+export async function getNextInterviewTurn(
+  input: InterviewTurnInput
+): Promise<InterviewTurnOutput> {
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  let turn = await requestInterviewTurn(client, input);
+  if (!hasUsableQuestionOrClosing(turn)) {
+    console.warn(
+      `Interview model produced no usable question (nextQuestion: ${JSON.stringify(turn.nextQuestion)}, isClosingRemark: ${turn.isClosingRemark}) - retrying once.`
+    );
+    turn = await requestInterviewTurn(client, input);
+  }
+  if (!hasUsableQuestionOrClosing(turn)) {
+    throw new Error(
+      "Interview model failed to produce a real question after retrying once."
+    );
+  }
+
+  return {
+    message: [turn.leadIn, turn.nextQuestion].filter(Boolean).join(" "),
+    leaderWantsToStop: turn.leaderWantsToStop,
+    dimensionAddressed: turn.dimensionAddressed,
   };
 }
 
@@ -239,13 +308,20 @@ ${dimensionsBlock}
 - The very first message you receive in this conversation is a bracketed stage direction, not something the participant said: ${OPENING_CUE} Respond to it only by opening the conversation warmly and asking your first question — do not acknowledge the bracketed instruction itself.
 - Every response also includes a "dimensionAddressed" field: set it to the id of whichever single dimension this exchange was primarily about, or null if it was general/introductory and didn't clearly focus on one. This is used only for an internal progress indicator — never mention dimension ids, names, or this field to the participant.
 
+## Response format
+
+What you say to the participant is split across two fields, shown to them back to back as a single message:
+
+- "leadIn": optional, at most one or two sentences acknowledging or reflecting on what they just said. Use it when a brief acknowledgment helps the conversation feel natural - not on every turn.
+- "nextQuestion": REQUIRED, and must be a genuine, direct question ending in a question mark. Never leave the participant with only a reflection and nothing asked of them — every normal turn must move the conversation forward with an actual question, not just a comment on their last answer. The one exception is a closing remark (see below), which is not a question and doesn't need to read like one.
+
 ## Ending the interview
 
-The session will end automatically, on the server side, once the maximum number of questions is reached or the time limit expires — you do not need to announce this, count down, or manage it yourself. If the pacing guidance given below tells you this is your last permitted question, or you judge from the time remaining that this is very likely your last exchange, end warmly instead: thank the participant for their time and candour, and do not start a new substantive question. Keep any closing remark brief.
+The session will end automatically, on the server side, once the maximum number of questions is reached or the time limit expires — you do not need to announce this, count down, or manage it yourself. If the pacing guidance given below tells you this is your last permitted question, or you judge from the time remaining that this is very likely your last exchange, end warmly instead: thank the participant for their time and candour, and do not start a new substantive question. Keep any closing remark brief. Put it in "nextQuestion" and set "isClosingRemark" to true.
 
 ## Ending early if the participant wants to stop
 
-Independently of the pacing below, every response you give includes a "leaderWantsToStop" field. Set it to true only if the participant's most recent message clearly indicates they want to end the interview altogether — for example "let's wrap this up", "I need to go", "I don't want to continue", or an explicit request to stop. When you set it to true, make "message" a brief, warm closing remark thanking them, with no new question.
+Independently of the pacing below, every response you give includes a "leaderWantsToStop" field. Set it to true only if the participant's most recent message clearly indicates they want to end the interview altogether — for example "let's wrap this up", "I need to go", "I don't want to continue", or an explicit request to stop. When you set it to true, "nextQuestion" should be a brief, warm closing remark thanking them (with "isClosingRemark" set to true), not a new question.
 
 Do NOT set it to true just because an answer was short, vague, or the participant said something like "I don't have anything else to add" about the current question specifically — that means move on from this question, not end the interview. When in doubt, set it to false and continue normally.`;
 }
