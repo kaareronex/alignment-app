@@ -168,7 +168,7 @@ export default function InterviewConversation({
           <textarea
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            rows={5}
+            rows={10}
             placeholder="Type your answer…"
             autoFocus
             disabled={isSubmitting}
