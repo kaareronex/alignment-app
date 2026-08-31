@@ -341,10 +341,7 @@ export default function ProjectEditForm({
         </button>
       </div>
 
-      <ShareableLinkCard
-        projectId={project.id}
-        isActive={project.status === "active"}
-      />
+      <ShareableLinkCard projectId={project.id} />
 
       {error && (
         <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>

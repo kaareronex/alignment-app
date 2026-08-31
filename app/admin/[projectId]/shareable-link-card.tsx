@@ -17,10 +17,8 @@ function getAppUrl(): string {
 
 export default function ShareableLinkCard({
   projectId,
-  isActive,
 }: {
   projectId: string;
-  isActive: boolean;
 }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">(
     "idle"
@@ -44,7 +42,7 @@ export default function ShareableLinkCard({
   return (
     <div className="im-card" style={{ backgroundColor: "var(--im-light-grey)" }}>
       <p className="text-sm" style={{ color: "var(--im-grey)" }}>
-        Shareable interview link{isActive ? "" : " (not active yet)"}:
+        Shareable interview link:
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <a

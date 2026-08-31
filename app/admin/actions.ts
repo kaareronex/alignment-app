@@ -30,7 +30,7 @@ export async function createProject() {
       status: "draft",
       framing_definitions: DEFAULT_FRAMING_DIMENSIONS,
       max_questions: 8,
-      access_mode: "lobby",
+      access_mode: "open",
       time_limit_enabled: false,
     })
     .select("id")
@@ -57,6 +57,33 @@ export async function deleteProject(projectId: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin");
+}
+
+/**
+ * A full, destructive restart for one participant: deletes their session
+ * row outright (messages cascade with it), rather than resetting its
+ * status in place - so the next time they use the same shared link, it's
+ * as if they never started, with no old answers left to resume into.
+ */
+export async function resetParticipantSession(
+  projectId: string,
+  leaderId: string
+) {
+  await requireAdminSession();
+
+  if (!projectId || !leaderId) {
+    throw new Error("Missing projectId or leaderId");
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("sessions")
+    .delete()
+    .eq("project_id", projectId)
+    .eq("leader_id", leaderId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/${projectId}/status`);
 }
 
 type SaveProjectInput = {
