@@ -15,11 +15,24 @@ aligned.
 - **Linting:** ESLint (`eslint-config-next`)
 - **Database:** Supabase (Postgres + RLS)
 - **Hosting:** Vercel (not yet deployed there — local dev only so far)
-- **AI:** Anthropic Claude (`claude-opus-4-8`), called only from
-  `lib/ai/interview-model.ts` — the single file that talks to the provider
-  directly, so swapping providers (e.g. an Azure-hosted model) later means
-  editing that one file, not the callers. **The interview-conducting side is
-  built; the synthesis side is not.**
+- **AI:** Implement's internal Azure APIM gateway (an OpenAI-compatible
+  `/v1` surface, not a direct OpenAI account and not Azure OpenAI Service's
+  own API shape), via the OpenAI SDK. `lib/ai/interview-model.ts` (model:
+  `gpt-5.6-terra`, balanced speed/cost for a latency-sensitive live
+  conversation) and `lib/ai/synthesis-model.ts` (model: `gpt-5.6-sol`, the
+  flagship tier - runs once per project, not once per exchange, so it can
+  afford the strongest reasoning) are the only two files that talk to the
+  provider directly; swapping providers again later means editing those two
+  files, not the callers. `lib/ai/openai-client.ts` holds the shared client
+  setup - the gateway authenticates via a plain `api-key` header rather than
+  the SDK's default `Authorization: Bearer`. **Migrated from direct
+  Anthropic** (previously `claude-sonnet-5` / `claude-opus-4-8`); the
+  pre-migration Anthropic implementations are kept, dormant and unimported,
+  as `lib/ai/interview-model.anthropic.ts` / `synthesis-model.anthropic.ts`
+  for rollback. The gateway key (`OPENAI_API_KEY`) **expires 2026-12-13**
+  and has a **$100/month budget** - both meaningfully smaller and more
+  time-bound than the previous Anthropic setup, worth checking before they
+  become a problem.
 
 ## Access model
 
@@ -40,7 +53,8 @@ aligned.
   (`get_project_public_state`, `get_leaders_for_project`); `sessions` and
   `messages` are never touched by the anon key at all — every read/write to
   them goes through a Server Action using the service-role client, since the
-  interview loop needs a server round-trip for the Claude call anyway.
+  interview loop needs a server round-trip for the model provider call
+  anyway.
 
 ## Current state (as of 2026-08-21)
 
@@ -69,10 +83,13 @@ itself.
   countdown when a time limit is set.
 - **AI-driven interview conversation** (`lib/ai/interview-model.ts` +
   `app/interview/actions.ts`): one question at a time, model decides
-  theme order and when to push back on a vague answer, via Claude
-  structured outputs (`client.messages.parse` + `zodOutputFormat`) — never
-  free-text parsing. Every turn returns `{ message, leaderWantsToStop,
-  dimensionAddressed }`. Session ending is **always server-decided**: hard
+  theme order and when to push back on a vague answer, via the OpenAI
+  Responses API's structured outputs (`client.responses.create` +
+  `zodTextFormat`) — never free-text parsing. The model's reply is split
+  into a required `nextQuestion` (validated to actually look like a
+  question, or be an explicit closing remark) plus an optional `leadIn`;
+  every turn returns `{ message, leaderWantsToStop, dimensionAddressed }`
+  to callers. Session ending is **always server-decided**: hard
   stops on `max_questions`/time limit are checked before ever calling the
   model; the model's own `leaderWantsToStop` signal is honoured on top of,
   not instead of, those; and the participant has an "End interview early"
@@ -100,9 +117,6 @@ itself.
   original plan called for seeing which participants are in progress/done
   and how many questions each has reached; only the lobby timer control
   exists there today.
-- **Azure model swap** — not started, and nothing in this repo references
-  Azure yet. The single-abstraction design in `lib/ai/interview-model.ts`
-  exists specifically to make this a one-file change when it happens.
 - Root route `/` is still the unmodified `create-next-app` scaffold.
 - Not deployed anywhere — everything so far has been run and tested via
   local `next dev`.
@@ -110,7 +124,8 @@ itself.
 ## Conventions
 
 - App Router under `app/`, TypeScript throughout, Tailwind utility styling.
-- Keep secrets (Supabase keys, Claude API key, admin session secret) in
+- Keep secrets (Supabase keys, the model provider's `OPENAI_API_KEY`,
+  admin session secret) in
   environment variables — never commit them. `.env*` is gitignored. See
   `README.md` for the full list of required env vars.
 - All UI copy and admin-facing generated output (synthesis, workshop plan)

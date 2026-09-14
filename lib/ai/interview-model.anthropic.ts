@@ -1,37 +1,32 @@
 import "server-only";
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { zodTextFormat } from "openai/helpers/zod";
-import type { Responses } from "openai/resources/responses/responses";
-import { createOpenAIClient } from "./openai-client";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 
 /**
- * ACTIVE provider: Implement's internal Azure OpenAI-compatible gateway (see
- * lib/ai/openai-client.ts), migrated from direct Anthropic. This is the only
- * file in the app that talks to the model provider directly for the
- * interview side - everything else calls getNextInterviewTurn(). The
- * pre-migration Anthropic implementation is kept, dormant, in
- * interview-model.anthropic.ts for rollback; see CLAUDE.md.
+ * DORMANT - not imported by anything. This is the pre-migration Anthropic
+ * implementation, kept only so a rollback from OpenAI/Azure back to
+ * Anthropic doesn't mean rewriting from scratch. The active implementation
+ * (same exported types/function signature) is interview-model.ts.
+ * ANTHROPIC_API_KEY must still be a valid, unexpired key for this file to
+ * work if it's ever restored - check it hasn't been let go stale first.
+ *
+ * The only file in the app that talks to Anthropic directly. Everything
+ * else calls getNextInterviewTurn() - swapping providers later means
+ * editing this file, not the callers.
  */
 
-// "Terra" is the balanced capability/speed/cost tier of the gpt-5.6 family -
-// appropriate for a latency-sensitive live conversation, same reasoning that
-// previously put this on Sonnet rather than Opus. lib/ai/synthesis-model.ts
-// stays on the flagship "sol" tier - it runs once per project, not once per
-// exchange, and needs the strongest reasoning.
-const MODEL = "gpt-5.6-terra";
-// Counts visible output AND reasoning tokens together (unlike Anthropic's
-// max_tokens, which was only ever visible text) - kept generous for the same
-// reason the Anthropic max_tokens was raised from 1024 to 4096: a growing
-// conversation plus a substantive follow-up, wrapped in structured-output
-// JSON, can run long, and a low ceiling here reproduces the exact
-// truncated/corrupted-output failure mode already fixed once on the
-// Anthropic side. See the status check below for what happens if a response
-// still runs past it.
-const MAX_OUTPUT_TOKENS = 8192;
-// Low effort: prioritises latency for a live back-and-forth conversation
-// over deeper reasoning. Fine here since interview push-back only needs to
-// judge one answer against the conversation so far, not solve anything hard.
-const REASONING_EFFORT = "low";
+// Temporarily Sonnet while iterating (cheaper/faster, and worth checking
+// whether it also reduces the corrupted-output pattern under investigation).
+// lib/ai/synthesis-model.ts stays on Opus - it runs once per project, not
+// once per exchange, and needs the stronger reasoning.
+const MODEL = "claude-sonnet-5";
+// 1024 was not actually generous: a growing conversation plus a
+// substantive follow-up question, wrapped in the structured-output JSON,
+// can run past it - which truncates the response mid-JSON and fails to
+// parse. 4096 is a safer floor; see the stop_reason check below for what
+// happens if a response still runs past it.
+const MAX_TOKENS = 4096;
 const OPENING_CUE =
   "[Begin the interview with your opening question now.]";
 
@@ -131,63 +126,62 @@ type RawTurn = {
 };
 
 async function requestInterviewTurn(
-  client: ReturnType<typeof createOpenAIClient>,
+  client: Anthropic,
   input: InterviewTurnInput
 ): Promise<RawTurn> {
-  const format = zodTextFormat(
-    buildInterviewTurnSchema(input.framingDimensions),
-    "interview_turn"
-  );
+  const format = zodOutputFormat(buildInterviewTurnSchema(input.framingDimensions));
 
-  // Using create() instead of parse() so the completion status can be
-  // checked before attempting to parse output_text - parse() would
-  // otherwise try to JSON.parse a response truncated by max_output_tokens
-  // and throw an opaque "unterminated string" error that hides the actual
-  // cause.
-  const response = await client.responses.create({
+  // Using create() instead of parse() so stop_reason can be checked before
+  // attempting to parse the content - parse() would otherwise try to
+  // JSON.parse a response truncated by max_tokens and throw an opaque
+  // "unterminated string" error that hides the actual cause.
+  const response = await client.messages.create({
     model: MODEL,
-    max_output_tokens: MAX_OUTPUT_TOKENS,
-    reasoning: { effort: REASONING_EFFORT },
-    // Explicit mode, not the default implicit one: we know exactly where
-    // the reusable prefix ends (see buildInput below), so there's no need
-    // to let the backend guess a breakpoint - and explicit mode is what
-    // "prompt_cache_breakpoint" on a content block actually requires to
-    // take effect. 30m is currently the only supported ttl.
-    prompt_cache_options: { mode: "explicit", ttl: "30m" },
-    input: buildInput(input),
-    text: { format },
+    max_tokens: MAX_TOKENS,
+    // Two blocks, not one string: everything up to and including the
+    // cache_control breakpoint (role/task, strategy context, dimensions,
+    // conduct/ending instructions) is identical on every turn of the same
+    // interview, so it's marked cacheable. Only the pacing block - question
+    // count, final-question flag, time remaining - actually changes turn to
+    // turn, so it's appended after the breakpoint, uncached.
+    system: [
+      { type: "text", text: buildStableSystemPrompt(input), cache_control: { type: "ephemeral" } },
+      { type: "text", text: buildPacingSuffix(input) },
+    ],
+    messages: buildMessages(input.conversation),
+    output_config: { format },
   });
 
-  // Anything other than "completed" means the response is incomplete and
-  // unsafe to parse - most commonly incomplete_details.reason
-  // "max_output_tokens" (raise MAX_OUTPUT_TOKENS) or "content_filter". This
-  // is the direct equivalent of the Anthropic stop_reason !== "end_turn"
-  // check this replaced.
-  if (response.status !== "completed") {
+  // Anything other than "end_turn" means the response is incomplete and
+  // unsafe to parse - most commonly "max_tokens" (raise MAX_TOKENS) or
+  // "model_context_window_exceeded" (the growing conversation history plus
+  // MAX_TOKENS of reserved output no longer fits the model's context
+  // window - the same fix doesn't apply; the conversation itself needs
+  // trimming/summarising once it gets this long).
+  if (response.stop_reason !== "end_turn") {
     throw new Error(
-      `Interview model response did not finish normally (status: "${response.status}", reason: "${response.incomplete_details?.reason ?? "unknown"}") - the response is incomplete and cannot be used.`
+      `Interview model response did not finish normally (stop_reason: "${response.stop_reason}") - the response is incomplete and cannot be used.`
     );
   }
 
-  const rawText = response.output_text;
-  if (!rawText) {
-    throw new Error("Interview model response contained no output text.");
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock) {
+    throw new Error("Interview model response contained no text content block.");
   }
 
-  // Parsed by hand rather than via format.$parseRaw(), which validates the
+  // Parsed by hand rather than via format.parse(), which validates the
   // whole object atomically against the zod schema (including the
   // dimensionAddressed enum) and throws on any mismatch. The enum in the
   // schema still guides the model via the API's structured-output
   // constraint, but it isn't airtight in practice - a handful of live
-  // load-test runs on the previous (Anthropic) provider produced a
-  // dimensionAddressed value outside the given ids, which crashed the whole
-  // turn even though the rest of the response was fine. dimensionAddressed
-  // only drives an internal progress indicator, so an unrecognised value is
-  // treated as "no dimension identified" instead of losing the
-  // participant's turn over it.
+  // load-test runs produced a dimensionAddressed value outside the given
+  // ids, which crashed the whole turn even though the rest of the response
+  // was fine. dimensionAddressed only drives an internal progress
+  // indicator, so an unrecognised value is treated as "no dimension
+  // identified" instead of losing the participant's turn over it.
   let rawParsed: unknown;
   try {
-    rawParsed = JSON.parse(rawText);
+    rawParsed = JSON.parse(textBlock.text);
   } catch (error) {
     throw new Error(
       `Failed to parse structured output as JSON: ${error instanceof Error ? error.message : String(error)}`
@@ -221,11 +215,11 @@ async function requestInterviewTurn(
 }
 
 // The structured-output schema constrains nextQuestion to be present, but
-// not to actually BE a question - a handful of live runs (on the previous
-// provider) produced a response that only reflected on the participant's
-// last answer ("That makes sense, thanks for sharing that.") with nothing
-// new asked, silently stalling the interview. Closing remarks are exempt:
-// by definition they don't ask anything.
+// not to actually BE a question - a handful of live runs produced a
+// response that only reflected on the participant's last answer ("That
+// makes sense, thanks for sharing that.") with nothing new asked, silently
+// stalling the interview. Closing remarks are exempt: by definition they
+// don't ask anything.
 function hasUsableQuestionOrClosing(turn: RawTurn): boolean {
   if (!turn.nextQuestion) return false;
   return turn.isClosingRemark || looksLikeQuestion(turn.nextQuestion);
@@ -234,7 +228,7 @@ function hasUsableQuestionOrClosing(turn: RawTurn): boolean {
 export async function getNextInterviewTurn(
   input: InterviewTurnInput
 ): Promise<InterviewTurnOutput> {
-  const client = createOpenAIClient();
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   let turn = await requestInterviewTurn(client, input);
   if (!hasUsableQuestionOrClosing(turn)) {
@@ -256,36 +250,9 @@ export async function getNextInterviewTurn(
   };
 }
 
-// Two content parts, not one string: everything up to and including the
-// prompt_cache_breakpoint (role/task, strategy context, dimensions,
-// conduct/ending instructions) is identical on every turn of the same
-// interview, so it's marked as the end of the reusable prefix. Only the
-// pacing block - question count, final-question flag, time remaining -
-// actually changes turn to turn, so it's appended after the breakpoint,
-// uncached. Mirrors the two-block cache_control split used on the Anthropic
-// side before this migration.
-function buildInput(input: InterviewTurnInput): Responses.ResponseInput {
-  const systemMessage: Responses.EasyInputMessage = {
-    role: "developer",
-    content: [
-      {
-        type: "input_text",
-        text: buildStableSystemPrompt(input),
-        prompt_cache_breakpoint: { mode: "explicit" },
-      },
-      {
-        type: "input_text",
-        text: buildPacingSuffix(input),
-      },
-    ],
-  };
-
-  return [systemMessage, ...buildConversationMessages(input.conversation)];
-}
-
-function buildConversationMessages(
+function buildMessages(
   conversation: ConversationMessage[]
-): Responses.EasyInputMessage[] {
+): Anthropic.MessageParam[] {
   if (conversation.length === 0) {
     return [{ role: "user", content: OPENING_CUE }];
   }

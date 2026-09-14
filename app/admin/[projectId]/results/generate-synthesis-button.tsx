@@ -53,8 +53,8 @@ export default function GenerateSynthesisButton({
       </button>
       {isPending && (
         <p className="text-xs" style={{ color: "var(--im-grey)" }}>
-          This calls Claude and reads every completed interview - it can take
-          a minute or two for larger teams.
+          This reads every completed interview and can take a minute or two
+          for larger teams.
         </p>
       )}
       {error && (

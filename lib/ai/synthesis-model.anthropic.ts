@@ -1,17 +1,21 @@
 import "server-only";
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { zodTextFormat } from "openai/helpers/zod";
-import { createOpenAIClient } from "./openai-client";
-import type { FramingDimension } from "./interview-model";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
+import type { FramingDimension } from "./interview-model.anthropic";
 
 /**
- * ACTIVE provider: Implement's internal Azure OpenAI-compatible gateway (see
- * lib/ai/openai-client.ts), migrated from direct Anthropic. Synthesis
- * generation is the second (and only other) place this app talks to a model
- * provider directly, alongside lib/ai/interview-model.ts. Kept in its own
- * file for the same reason: a future provider swap touches exactly two
- * files. The pre-migration Anthropic implementation is kept, dormant, in
- * synthesis-model.anthropic.ts for rollback; see CLAUDE.md.
+ * DORMANT - not imported by anything. This is the pre-migration Anthropic
+ * implementation, kept only so a rollback from OpenAI/Azure back to
+ * Anthropic doesn't mean rewriting from scratch. The active implementation
+ * (same exported types/function signature) is synthesis-model.ts.
+ * ANTHROPIC_API_KEY must still be a valid, unexpired key for this file to
+ * work if it's ever restored - check it hasn't been let go stale first.
+ *
+ * Synthesis generation - the second (and only other) place this app talks
+ * to Anthropic directly, alongside lib/ai/interview-model.ts. Kept in its
+ * own file for the same reason: a future provider swap touches exactly two
+ * files.
  *
  * Anonymity is enforced by the caller, not by prompting: participant names
  * are never passed in here, and any role_label unique to a single
@@ -24,24 +28,11 @@ import type { FramingDimension } from "./interview-model";
  * stay as-is; see CLAUDE.md.
  */
 
-// "Sol" is the flagship tier of the gpt-5.6 family - this runs once per
-// project, not once per exchange, so latency doesn't matter the way it does
-// for lib/ai/interview-model.ts, and the nuanced cross-participant
-// aggregation this does benefits from the strongest reasoning available.
-const MODEL = "gpt-5.6-sol";
+const MODEL = "claude-opus-4-8";
 // Raised alongside the workshop plan addition - one narrative+breakdown per
 // dimension plus a full agenda item per priority is a lot more output than
-// the original dimensions-and-priorities-only response. Counts visible
-// output AND reasoning tokens together (unlike the old Anthropic
-// max_tokens), and a "high" reasoning effort on the flagship tier can use a
-// meaningful chunk of that budget on reasoning alone before ever writing the
-// synthesis itself, so this is well above the interview model's ceiling.
-const MAX_OUTPUT_TOKENS = 32768;
-// High, not the maximum "max" tier: this needs genuinely strong reasoning
-// (nuanced synthesis, anonymity-preserving aggregation) but runs against a
-// deliberately small monthly budget (see CLAUDE.md) and only once per
-// project, so paying for the very top reasoning tier isn't worth it here.
-const REASONING_EFFORT = "high";
+// the original dimensions-and-priorities-only response.
+const MAX_TOKENS = 16384;
 
 export type SynthesisMessageInput = {
   sender: "assistant" | "leader";
@@ -220,40 +211,36 @@ function buildSynthesisSchema(
 export async function getSynthesis(
   input: SynthesisInput
 ): Promise<SynthesisOutput> {
-  const client = createOpenAIClient();
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
   const leaderIds = input.sessions.map((s) => s.leaderId);
-  const format = zodTextFormat(
-    buildSynthesisSchema(input.framingDimensions, leaderIds),
-    "synthesis"
+  const format = zodOutputFormat(
+    buildSynthesisSchema(input.framingDimensions, leaderIds)
   );
 
-  // create() + manual status check, not parse() - see the equivalent
+  // create() + manual stop_reason check, not parse() - see the equivalent
   // comment in lib/ai/interview-model.ts. The workshop plan addition makes
   // this response substantially longer, so a truncated/incomplete response
   // is worth surfacing clearly rather than as an opaque JSON parse error.
-  const response = await client.responses.create({
+  const response = await client.messages.create({
     model: MODEL,
-    max_output_tokens: MAX_OUTPUT_TOKENS,
-    reasoning: { effort: REASONING_EFFORT },
-    input: [
-      { role: "developer", content: buildSystemPrompt(input) },
-      { role: "user", content: "Generate the synthesis now." },
-    ],
-    text: { format },
+    max_tokens: MAX_TOKENS,
+    system: buildSystemPrompt(input),
+    messages: [{ role: "user", content: "Generate the synthesis now." }],
+    output_config: { format },
   });
 
-  if (response.status !== "completed") {
+  if (response.stop_reason !== "end_turn") {
     throw new Error(
-      `Synthesis model response did not finish normally (status: "${response.status}", reason: "${response.incomplete_details?.reason ?? "unknown"}") - the response is incomplete and cannot be used.`
+      `Synthesis model response did not finish normally (stop_reason: "${response.stop_reason}") - the response is incomplete and cannot be used.`
     );
   }
 
-  const rawText = response.output_text;
-  if (!rawText) {
-    throw new Error("Synthesis model response contained no output text.");
+  const textBlock = response.content.find((block) => block.type === "text");
+  if (!textBlock) {
+    throw new Error("Synthesis model response contained no text content block.");
   }
 
-  return format.$parseRaw(rawText);
+  return format.parse(textBlock.text);
 }
 
 function buildSystemPrompt(input: SynthesisInput): string {
