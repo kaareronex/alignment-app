@@ -26,10 +26,10 @@ function themeState(
   return "upcoming";
 }
 
-// Deliberately abstract, not a labelled checklist: segment ids aren't shown
-// to participants (their labels/descriptions are admin-only, used to guide
-// the model server-side), and this is meant to give a light sense of "some
-// ground covered, some still ahead", not to read as a visible to-do list.
+// Segments stay unlabelled themselves - deliberately light-touch, meant to
+// give a sense of "some ground covered, some still ahead" rather than read
+// as a visible to-do list. The current theme's name is shown separately, as
+// a small caption above the question (see ThemeCaption below).
 function ThemeProgressBar({
   dimensionIds,
   currentDimensionId,
@@ -75,13 +75,29 @@ function ThemeProgressBar({
   );
 }
 
+function ThemeCaption({ label }: { label: string }) {
+  return (
+    <p
+      className="text-xs"
+      style={{
+        color: "var(--im-grey)",
+        fontVariant: "small-caps",
+        letterSpacing: "0.05em",
+        fontWeight: 600,
+      }}
+    >
+      {label}
+    </p>
+  );
+}
+
 export default function InterviewConversation({
   projectId,
-  dimensionIds,
+  dimensions,
   languageCode,
 }: {
   projectId: string;
-  dimensionIds: string[];
+  dimensions: { id: string; label: string }[];
   languageCode: string | null;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
@@ -187,13 +203,18 @@ export default function InterviewConversation({
     );
   }
 
+  const currentThemeLabel = dimensions.find((d) => d.id === currentDimensionId)?.label;
+
   return (
     <div className="space-y-6">
-      <ThemeProgressBar
-        dimensionIds={dimensionIds}
-        currentDimensionId={currentDimensionId}
-        touchedDimensionIds={touchedDimensionIds}
-      />
+      <div className="space-y-2">
+        <ThemeProgressBar
+          dimensionIds={dimensions.map((d) => d.id)}
+          currentDimensionId={currentDimensionId}
+          touchedDimensionIds={touchedDimensionIds}
+        />
+        {currentThemeLabel && <ThemeCaption label={currentThemeLabel} />}
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="im-display text-xl" style={{ color: "var(--im-black)" }}>
           {phase.message}

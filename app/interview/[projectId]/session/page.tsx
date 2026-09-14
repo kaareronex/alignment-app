@@ -60,10 +60,11 @@ export default async function InterviewSessionPage({
     redirect(`/interview/${projectId}`);
   }
 
-  // Only the ids reach the browser - labels/descriptions guide the model
-  // server-side but aren't shown to participants.
-  const dimensionIds = ((project.framing_definitions ?? []) as FramingDimension[]).map(
-    (d) => d.id
+  // Labels now reach the browser too, to caption the current theme above
+  // each question - descriptions (which guide the model's judgement, not
+  // just naming) still stay server-side only.
+  const dimensions = ((project.framing_definitions ?? []) as FramingDimension[]).map(
+    (d) => ({ id: d.id, label: d.label })
   );
 
   return (
@@ -75,7 +76,7 @@ export default async function InterviewSessionPage({
       timeLimitEnabled={project.time_limit_enabled}
       timeLimitMinutes={project.time_limit_minutes}
       sessionStartedAt={session.started_at}
-      dimensionIds={dimensionIds}
+      dimensions={dimensions}
       languageCode={session.language_code}
     />
   );

@@ -12,7 +12,7 @@ type Props = {
   timeLimitEnabled: boolean;
   timeLimitMinutes: number | null;
   sessionStartedAt: string | null;
-  dimensionIds: string[];
+  dimensions: { id: string; label: string }[];
   languageCode: string | null;
 };
 
@@ -31,7 +31,7 @@ export default function SessionView({
   timeLimitEnabled,
   timeLimitMinutes,
   sessionStartedAt,
-  dimensionIds,
+  dimensions,
   languageCode,
 }: Props) {
   const [timerStatus, setTimerStatus] = useState(initialTimerStatus);
@@ -109,7 +109,7 @@ export default function SessionView({
       )}
       <InterviewConversation
         projectId={projectId}
-        dimensionIds={dimensionIds}
+        dimensions={dimensions}
         languageCode={languageCode}
       />
     </div>
