@@ -26,21 +26,23 @@ function themeState(
   return "upcoming";
 }
 
-// Segments stay unlabelled themselves - deliberately light-touch, meant to
-// give a sense of "some ground covered, some still ahead" rather than read
-// as a visible to-do list. The current theme's name is shown separately, as
-// a small caption above the question (see ThemeCaption below).
+// Each segment's label sits directly under it - never floating separately
+// above the whole bar - so which name belongs to which segment is never
+// ambiguous. Upcoming themes stay completely unlabelled (just an outline
+// segment, no text): revealing a theme's name before the interview actually
+// reaches it would give away what's still to come, which the AI decides on
+// the fly, not on a fixed published order.
 function ThemeProgressBar({
-  dimensionIds,
+  dimensions,
   currentDimensionId,
   touchedDimensionIds,
 }: {
-  dimensionIds: string[];
+  dimensions: { id: string; label: string }[];
   currentDimensionId: string | null;
   touchedDimensionIds: string[];
 }) {
-  const coveredCount = dimensionIds.filter((id) =>
-    themeState(id, currentDimensionId, touchedDimensionIds) !== "upcoming"
+  const coveredCount = dimensions.filter(
+    (d) => themeState(d.id, currentDimensionId, touchedDimensionIds) !== "upcoming"
   ).length;
 
   return (
@@ -48,46 +50,53 @@ function ThemeProgressBar({
       className="flex gap-1.5"
       role="progressbar"
       aria-valuemin={0}
-      aria-valuemax={dimensionIds.length}
+      aria-valuemax={dimensions.length}
       aria-valuenow={coveredCount}
       aria-label="Interview progress"
     >
-      {dimensionIds.map((id) => {
-        const state = themeState(id, currentDimensionId, touchedDimensionIds);
+      {dimensions.map((d) => {
+        const state = themeState(d.id, currentDimensionId, touchedDimensionIds);
         return (
-          <div
-            key={id}
-            className="h-1.5 flex-1 rounded-[2px] transition-colors duration-500"
-            style={
-              state === "active"
-                ? { backgroundColor: "var(--im-blue-green)" }
-                : state === "covered"
-                  ? { backgroundColor: "var(--im-grey)" }
-                  : {
-                      backgroundColor: "transparent",
-                      border: "1px solid var(--im-blue-green-light)",
+          <div key={d.id} className="flex min-w-0 flex-1 flex-col gap-1">
+            <div
+              className="h-1.5 rounded-[2px] transition-colors duration-500"
+              style={
+                state === "active"
+                  ? { backgroundColor: "var(--im-blue-green)" }
+                  : state === "covered"
+                    ? { backgroundColor: "var(--im-grey)" }
+                    : {
+                        backgroundColor: "transparent",
+                        border: "1px solid var(--im-blue-green-light)",
+                      }
+              }
+            />
+            <p
+              className="truncate text-xs leading-4"
+              style={
+                state === "active"
+                  ? {
+                      color: "var(--im-blue-green)",
+                      fontWeight: 700,
+                      borderBottom: "2px solid var(--im-blue-green)",
                     }
-            }
-          />
+                  : state === "covered"
+                    ? {
+                        color: "var(--im-grey)",
+                        fontVariant: "small-caps",
+                        letterSpacing: "0.05em",
+                        fontWeight: 600,
+                        borderBottom: "2px solid transparent",
+                      }
+                    : { borderBottom: "2px solid transparent" }
+              }
+            >
+              {state === "upcoming" ? " " : d.label}
+            </p>
+          </div>
         );
       })}
     </div>
-  );
-}
-
-function ThemeCaption({ label }: { label: string }) {
-  return (
-    <p
-      className="text-xs"
-      style={{
-        color: "var(--im-grey)",
-        fontVariant: "small-caps",
-        letterSpacing: "0.05em",
-        fontWeight: 600,
-      }}
-    >
-      {label}
-    </p>
   );
 }
 
@@ -203,18 +212,13 @@ export default function InterviewConversation({
     );
   }
 
-  const currentThemeLabel = dimensions.find((d) => d.id === currentDimensionId)?.label;
-
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <ThemeProgressBar
-          dimensionIds={dimensions.map((d) => d.id)}
-          currentDimensionId={currentDimensionId}
-          touchedDimensionIds={touchedDimensionIds}
-        />
-        {currentThemeLabel && <ThemeCaption label={currentThemeLabel} />}
-      </div>
+      <ThemeProgressBar
+        dimensions={dimensions}
+        currentDimensionId={currentDimensionId}
+        touchedDimensionIds={touchedDimensionIds}
+      />
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="im-display text-xl" style={{ color: "var(--im-black)" }}>
           {phase.message}
