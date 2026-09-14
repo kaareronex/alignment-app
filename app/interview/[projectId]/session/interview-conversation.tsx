@@ -14,32 +14,63 @@ type Phase =
   | { kind: "question"; message: string }
   | { kind: "completed" };
 
-function ProgressBar({
-  totalCount,
-  touchedCount,
+type ThemeState = "upcoming" | "active" | "covered";
+
+function themeState(
+  dimensionId: string,
+  currentDimensionId: string | null,
+  touchedDimensionIds: string[]
+): ThemeState {
+  if (dimensionId === currentDimensionId) return "active";
+  if (touchedDimensionIds.includes(dimensionId)) return "covered";
+  return "upcoming";
+}
+
+// Deliberately abstract, not a labelled checklist: segment ids aren't shown
+// to participants (their labels/descriptions are admin-only, used to guide
+// the model server-side), and this is meant to give a light sense of "some
+// ground covered, some still ahead", not to read as a visible to-do list.
+function ThemeProgressBar({
+  dimensionIds,
+  currentDimensionId,
+  touchedDimensionIds,
 }: {
-  totalCount: number;
-  touchedCount: number;
+  dimensionIds: string[];
+  currentDimensionId: string | null;
+  touchedDimensionIds: string[];
 }) {
+  const coveredCount = dimensionIds.filter((id) =>
+    themeState(id, currentDimensionId, touchedDimensionIds) !== "upcoming"
+  ).length;
+
   return (
     <div
-      className="flex gap-1"
+      className="flex gap-1.5"
       role="progressbar"
       aria-valuemin={0}
-      aria-valuemax={totalCount}
-      aria-valuenow={touchedCount}
+      aria-valuemax={dimensionIds.length}
+      aria-valuenow={coveredCount}
       aria-label="Interview progress"
     >
-      {Array.from({ length: totalCount }, (_, i) => (
-        <div
-          key={i}
-          className="h-1 flex-1 rounded-[2px]"
-          style={{
-            backgroundColor:
-              i < touchedCount ? "var(--im-blue-green)" : "var(--im-blue-green-light)",
-          }}
-        />
-      ))}
+      {dimensionIds.map((id) => {
+        const state = themeState(id, currentDimensionId, touchedDimensionIds);
+        return (
+          <div
+            key={id}
+            className="h-1.5 flex-1 rounded-[2px] transition-colors duration-500"
+            style={
+              state === "active"
+                ? { backgroundColor: "var(--im-blue-green)" }
+                : state === "covered"
+                  ? { backgroundColor: "var(--im-grey)" }
+                  : {
+                      backgroundColor: "transparent",
+                      border: "1px solid var(--im-blue-green-light)",
+                    }
+            }
+          />
+        );
+      })}
     </div>
   );
 }
@@ -62,6 +93,7 @@ export default function InterviewConversation({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [touchedDimensionIds, setTouchedDimensionIds] = useState<string[]>([]);
+  const [currentDimensionId, setCurrentDimensionId] = useState<string | null>(null);
   const [isEnding, setIsEnding] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
 
@@ -71,6 +103,7 @@ export default function InterviewConversation({
     } else {
       setPhase({ kind: "question", message: result.message });
       setTouchedDimensionIds(result.touchedDimensionIds);
+      setCurrentDimensionId(result.currentDimensionId);
     }
   }
 
@@ -156,9 +189,10 @@ export default function InterviewConversation({
 
   return (
     <div className="space-y-6">
-      <ProgressBar
-        totalCount={dimensionIds.length}
-        touchedCount={touchedDimensionIds.length}
+      <ThemeProgressBar
+        dimensionIds={dimensionIds}
+        currentDimensionId={currentDimensionId}
+        touchedDimensionIds={touchedDimensionIds}
       />
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="im-display text-xl" style={{ color: "var(--im-black)" }}>

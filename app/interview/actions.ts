@@ -94,7 +94,13 @@ export async function startInterviewSession(
 }
 
 export type InterviewTurnResponse =
-  | { status: "question"; message: string; touchedDimensionIds: string[] }
+  | {
+      status: "question";
+      message: string;
+      touchedDimensionIds: string[];
+      /** Dimension this specific question is about, or null if general. */
+      currentDimensionId: string | null;
+    }
   | { status: "completed" };
 
 function computeTouchedDimensionIds(
@@ -192,6 +198,7 @@ export async function advanceInterview(
         status: "question",
         message: lastQuestion.content,
         touchedDimensionIds: computeTouchedDimensionIds(existingMessages ?? []),
+        currentDimensionId: lastQuestion.dimension_id,
       };
     }
   }
@@ -305,7 +312,12 @@ export async function advanceInterview(
     { dimension_id: turn.dimensionAddressed },
   ]);
 
-  return { status: "question", message: turn.message, touchedDimensionIds };
+  return {
+    status: "question",
+    message: turn.message,
+    touchedDimensionIds,
+    currentDimensionId: turn.dimensionAddressed,
+  };
 }
 
 /** The participant clicking "End interview early" - a hard stop just like the
