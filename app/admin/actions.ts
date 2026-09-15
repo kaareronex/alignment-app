@@ -86,6 +86,36 @@ export async function resetParticipantSession(
   revalidatePath(`/admin/${projectId}/status`);
 }
 
+/**
+ * Lives on the results page, next to Regenerate, rather than on the project
+ * edit form - this is the one field a consultant actually thinks about at
+ * the point they're about to regenerate, not while editing the interview
+ * setup. Changing it alone does nothing to an already-generated synthesis;
+ * see the staleness check on the results page for why that matters.
+ */
+export async function updateWorkshopDuration(
+  projectId: string,
+  minutes: number
+) {
+  await requireAdminSession();
+
+  if (!projectId) {
+    throw new Error("Missing projectId");
+  }
+  if (!Number.isInteger(minutes) || minutes < 15 || minutes > 480) {
+    throw new Error("Workshop length must be a whole number of minutes between 15 and 480.");
+  }
+
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ workshop_duration_minutes: minutes })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/${projectId}/results`);
+}
+
 type SaveProjectInput = {
   name: string;
   strategy_context: string;
