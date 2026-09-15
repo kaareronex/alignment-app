@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { Synthesis, SynthesisDimension } from "../../../types";
+import type { Synthesis, SynthesisDimension, WorkshopAgendaItem } from "../../../types";
 import { ALIGNMENT_LABELS, ALIGNMENT_COLORS } from "../alignment-display";
 
 type Screen =
   | { kind: "opening" }
   | { kind: "theme"; dimension: SynthesisDimension }
-  | { kind: "closing" };
+  | { kind: "workshopOpening" }
+  | { kind: "agendaItem"; item: WorkshopAgendaItem }
+  | { kind: "closingCapture" };
 
 /**
  * Fixed, full-viewport, high z-index: this is the mechanism that hides the
@@ -30,7 +32,11 @@ export default function PresenterView({
     ...synthesis.content.dimensions.map(
       (dimension): Screen => ({ kind: "theme", dimension })
     ),
-    { kind: "closing" },
+    { kind: "workshopOpening" },
+    ...synthesis.content.workshopPlan.agendaItems.map(
+      (item): Screen => ({ kind: "agendaItem", item })
+    ),
+    { kind: "closingCapture" },
   ];
 
   const [index, setIndex] = useState(0);
@@ -115,8 +121,19 @@ export default function PresenterView({
               onToggleReveal={() => setRevealed((r) => !r)}
             />
           )}
-          {screen.kind === "closing" && (
-            <ClosingScreen openingFraming={synthesis.content.workshopPlan.openingFraming} />
+          {screen.kind === "workshopOpening" && (
+            <WorkshopOpeningScreen openingFraming={synthesis.content.workshopPlan.openingFraming} />
+          )}
+          {screen.kind === "agendaItem" && (
+            <AgendaItemScreen
+              key={index}
+              item={screen.item}
+              revealed={revealed}
+              onToggleReveal={() => setRevealed((r) => !r)}
+            />
+          )}
+          {screen.kind === "closingCapture" && (
+            <ClosingCaptureScreen template={synthesis.content.workshopPlan.closingTemplate} />
           )}
         </div>
       </div>
@@ -188,7 +205,7 @@ function OpeningScreen({
   );
 }
 
-function ClosingScreen({ openingFraming }: { openingFraming: string }) {
+function WorkshopOpeningScreen({ openingFraming }: { openingFraming: string }) {
   return (
     <div className="space-y-8 text-center">
       <h1
@@ -205,6 +222,141 @@ function ClosingScreen({ openingFraming }: { openingFraming: string }) {
         }}
       >
         {openingFraming}
+      </p>
+    </div>
+  );
+}
+
+function formatTimer(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Given a fresh `key={index}` from the parent on every navigation (see
+ * PresenterView), this remounts - and so resets its timer - each time the
+ * facilitator lands on this screen, the same reset-on-navigation behaviour
+ * as the reveal state above, just implemented locally since the timer is
+ * this screen's own concern.
+ */
+function AgendaItemScreen({
+  item,
+  revealed,
+  onToggleReveal,
+}: {
+  item: WorkshopAgendaItem;
+  revealed: boolean;
+  onToggleReveal: () => void;
+}) {
+  const [remainingSeconds, setRemainingSeconds] = useState(item.minutes * 60);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    if (!running) return;
+    const interval = setInterval(() => {
+      setRemainingSeconds((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [running]);
+
+  return (
+    <div className="space-y-8 text-center">
+      {/* Deliberately small and muted - visible, not a dominant element.
+          Never auto-advances the screen; the facilitator decides that. */}
+      <div className="flex items-center justify-center gap-3">
+        <span style={{ fontSize: "1rem", color: "var(--im-grey)" }}>
+          {item.minutes} min allotted
+        </span>
+        <button
+          type="button"
+          onClick={() => setRunning((r) => !r)}
+          className="btn-secondary"
+          style={{ fontSize: "0.875rem", padding: "0.3rem 0.8rem" }}
+        >
+          {running ? "Pause" : "Start"}
+        </button>
+        <span
+          style={{
+            fontSize: "1rem",
+            fontFamily: "monospace",
+            color: remainingSeconds === 0 ? "var(--im-deep-red, #451f23)" : "var(--im-grey)",
+            minWidth: "3ch",
+          }}
+        >
+          {formatTimer(remainingSeconds)}
+        </span>
+      </div>
+
+      <h1
+        className="im-display"
+        style={{ color: "var(--im-black)", fontSize: "clamp(2.5rem, 6vw, 4.5rem)" }}
+      >
+        {item.shortTitle}
+      </h1>
+
+      <p
+        style={{
+          color: "var(--im-ash)",
+          fontSize: "clamp(1.5rem, 3.25vw, 2.5rem)",
+          lineHeight: 1.4,
+        }}
+      >
+        {item.discussionPrompt}
+      </p>
+
+      <div>
+        <button
+          type="button"
+          onClick={onToggleReveal}
+          className="btn-secondary"
+          style={{ fontSize: "1.125rem", padding: "0.6rem 1.5rem" }}
+        >
+          {revealed ? "Hide facilitator notes" : "Show facilitator notes"}
+        </button>
+      </div>
+
+      {revealed && (
+        <div
+          className="space-y-6 border-t pt-8 text-left"
+          style={{ borderColor: "var(--im-blue-green-light)" }}
+        >
+          <p style={{ color: "var(--im-ash)", fontSize: "1.25rem", lineHeight: 1.5 }}>
+            <span className="font-bold">Full priority: </span>
+            {item.priorityText}
+          </p>
+          <p style={{ color: "var(--im-ash)", fontSize: "1.25rem", lineHeight: 1.5 }}>
+            <span className="font-bold">Hypothesis (deploy if discussion stalls or stays too polite): </span>
+            {item.hypothesis}
+          </p>
+          <p style={{ color: "var(--im-ash)", fontSize: "1.25rem", lineHeight: 1.5 }}>
+            <span className="font-bold">Exercise: </span>
+            {item.exercise}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ClosingCaptureScreen({ template }: { template: string }) {
+  return (
+    <div className="space-y-8 text-center">
+      <h1
+        className="im-display"
+        style={{ color: "var(--im-black)", fontSize: "clamp(2.75rem, 6vw, 4.5rem)" }}
+      >
+        Closing
+      </h1>
+      <p
+        className="whitespace-pre-line text-left"
+        style={{
+          color: "var(--im-ash)",
+          fontSize: "clamp(1.25rem, 2.75vw, 2rem)",
+          lineHeight: 1.6,
+        }}
+      >
+        {template}
       </p>
     </div>
   );

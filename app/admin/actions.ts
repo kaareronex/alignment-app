@@ -425,6 +425,7 @@ export async function generateSynthesis(projectId: string) {
       openingFraming: output.workshopPlan.openingFraming,
       openingMinutes,
       agendaItems: output.workshopPlan.agendaItems.map((item, i) => ({
+        shortTitle: item.shortTitle,
         priorityText: output.topPriorities[i].text,
         discussionPrompt: item.discussionPrompt,
         hypothesis: item.hypothesis,

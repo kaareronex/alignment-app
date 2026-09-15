@@ -7,6 +7,9 @@
  */
 export function hasCurrentShapeSynthesis(content: unknown): boolean {
   const dimensions = (content as { dimensions?: unknown })?.dimensions;
+  const agendaItems = (
+    content as { workshopPlan?: { agendaItems?: unknown } }
+  )?.workshopPlan?.agendaItems;
   return (
     !!content &&
     Array.isArray((content as { topPriorities?: unknown })?.topPriorities) &&
@@ -16,6 +19,8 @@ export function hasCurrentShapeSynthesis(content: unknown): boolean {
       (d) =>
         typeof (d as { keyPoint?: unknown }).keyPoint === "string" &&
         Array.isArray((d as { participantBases?: unknown }).participantBases)
-    )
+    ) &&
+    Array.isArray(agendaItems) &&
+    agendaItems.every((item) => typeof (item as { shortTitle?: unknown }).shortTitle === "string")
   );
 }

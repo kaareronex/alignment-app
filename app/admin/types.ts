@@ -52,6 +52,8 @@ export type SynthesisTopPriority = {
 };
 
 export type WorkshopAgendaItem = {
+  /** Roughly 3-6 words, e.g. "Incentives and sharing" - for room display. */
+  shortTitle: string;
   priorityText: string;
   discussionPrompt: string;
   hypothesis: string;

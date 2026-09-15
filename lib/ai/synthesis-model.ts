@@ -90,6 +90,7 @@ export type SynthesisTopPriorityOutput = {
 };
 
 export type WorkshopAgendaItemOutput = {
+  shortTitle: string;
   discussionPrompt: string;
   hypothesis: string;
   exercise: string;
@@ -169,6 +170,11 @@ function buildSynthesisSchema(
   });
 
   const agendaItemSchema = z.object({
+    shortTitle: z
+      .string()
+      .describe(
+        'A short (roughly 3-6 words) label for this priority, for display at presentation size where the full priority text would be unreadable and impossible to say aloud as a transition - e.g. "Incentives and sharing", "Safety to say it failed". Use this exact same short title verbatim wherever this priority is referenced in the closing template below, so the two stay consistent.'
+      ),
     discussionPrompt: z
       .string()
       .describe(
@@ -211,7 +217,7 @@ function buildSynthesisSchema(
       closingTemplate: z
         .string()
         .describe(
-          "A short, literal fill-in-live template for the facilitator to capture what the group actually agreed before they leave - structured as repeatable short lines of Decision / Owner / Next step, not prose. Ready to project and fill in during the session, not a description of what to do."
+          'A short, literal fill-in-live template for the facilitator to capture what the group actually agreed before they leave - structured as repeatable short lines of Decision / Owner / Next step, not prose. Ready to project and fill in during the session, not a description of what to do. Reference each priority by its exact shortTitle from above (e.g. "Priority 1 — Incentives and sharing:"), so the labels used here and on the agenda-item screens match.'
         ),
     }),
   });
@@ -311,7 +317,7 @@ Then produce the top priorities: 3-6 concrete priorities or open questions this 
 
 Finally, produce a workshop plan for a facilitator to run a live session with this leadership team, roughly ${input.workshopDurationMinutes} minutes long (exact per-item timing will be calculated separately - focus on content, not minutes):
 - An opening framing that makes it safe to name disagreement in the room.
-- One agenda item per top priority (same order), each with a discussion prompt, a "we believe X - confirm or challenge this" hypothesis grounded in what the interviews actually showed, and one concrete facilitation exercise - vary the exercise mechanic across items rather than repeating the same one.
+- One agenda item per top priority (same order), each with: a short title (see shortTitle above) for projecting at presentation size instead of the full priority text; a discussion prompt to open the group on; a "we believe X - confirm or challenge this" hypothesis grounded in what the interviews actually showed; and one concrete facilitation exercise - vary the exercise mechanic across items rather than repeating the same one. The hypothesis and exercise are facilitator-only tools, deployed only if discussion stalls or stays too polite - they are never shown to the room alongside the discussion prompt, so word them as something the facilitator reads privately and chooses when to introduce, not as room-visible text.
 - A closing template the facilitator can fill in live to capture what was actually agreed.
 
 Be direct and specific rather than diplomatic-vague throughout - this report and plan are for the team itself, and their value is in naming real disagreement and avoidance clearly, while still only ever referring to participants by the ref/tag given.`;
