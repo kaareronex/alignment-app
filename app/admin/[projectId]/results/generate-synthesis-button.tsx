@@ -8,10 +8,12 @@ export default function GenerateSynthesisButton({
   projectId,
   hasExistingSynthesis,
   completedSessionCount,
+  accessToken,
 }: {
   projectId: string;
   hasExistingSynthesis: boolean;
   completedSessionCount: number;
+  accessToken?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -28,7 +30,7 @@ export default function GenerateSynthesisButton({
     setError(null);
     startTransition(async () => {
       try {
-        await generateSynthesis(projectId);
+        await generateSynthesis(projectId, accessToken);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to generate synthesis.");

@@ -48,6 +48,29 @@ aligned.
   (`lib/admin-session.ts`). Every `/admin/*` route is gated by `proxy.ts`
   (Next 16's middleware convention) doing an optimistic cookie check on
   every request.
+- **Per-project consultant access:** `/project/[accessToken]` grants full
+  admin rights (edit settings, status, reset participants, generate
+  synthesis, results, facilitator view, export) to exactly one project, no
+  login - same "unguessable URL is the credential" pattern as the
+  participant link, just admin-scoped to one project. `projects.access_token`
+  (64 hex chars, `pgcrypto`'s `gen_random_bytes`) is the token;
+  `lib/project-access.ts`'s `requireProjectAccess(projectId, accessToken?)`
+  is the dual-mode gate every project-management Server Action calls instead
+  of `requireAdminSession()` directly - it re-checks the token against the
+  *current* DB value on every call, not just once at the page level, so
+  regenerating the token (admin-only, `regenerateProjectAccessToken`,
+  "Regenerate link" on `/admin/[projectId]`) revokes the old one immediately
+  with no separate revocation list. The four project pages
+  (edit/status/results/results/present) each have their logic in a shared
+  `*-page-content.tsx` under `app/admin/[projectId]/...`, imported by both
+  the real `/admin/[projectId]/...` route (accessToken omitted) and the
+  `/project/[accessToken]/...` route (which resolves the token to a
+  projectId first, 404s if it doesn't match anything) - one implementation,
+  so the two surfaces can't drift apart. `/project/*` is a completely
+  separate route tree from `/admin/*` and is never touched by `proxy.ts`
+  (matcher is `/admin/:path*` only) - a project token grants no path to
+  `/admin`, the project list, or `/admin/settings`, which stay gated purely
+  by the pre-existing admin session cookie regardless of anything above.
 - **RLS note:** the anon key has zero direct table grants. Participant-facing
   reads go through two `SECURITY DEFINER` RPCs scoped to one project id
   (`get_project_public_state`, `get_leaders_for_project`); `sessions` and

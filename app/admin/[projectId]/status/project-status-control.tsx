@@ -15,9 +15,11 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
 export default function ProjectStatusControl({
   projectId,
   status,
+  accessToken,
 }: {
   projectId: string;
   status: Status;
+  accessToken?: string;
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Status>(status);
@@ -25,7 +27,7 @@ export default function ProjectStatusControl({
 
   function handleUpdate() {
     startTransition(async () => {
-      await updateProjectStatus(projectId, selected);
+      await updateProjectStatus(projectId, selected, accessToken);
       router.refresh();
     });
   }

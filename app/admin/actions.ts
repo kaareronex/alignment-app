@@ -1,9 +1,11 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAdminSession } from "@/lib/admin-session";
+import { requireProjectAccess } from "@/lib/project-access";
 import { broadcastProjectTimerStarted } from "@/lib/realtime-broadcast";
 import {
   DEFAULT_FRAMING_DIMENSIONS,
@@ -67,9 +69,10 @@ export async function deleteProject(projectId: string) {
  */
 export async function resetParticipantSession(
   projectId: string,
-  leaderId: string
+  leaderId: string,
+  accessToken?: string
 ) {
-  await requireAdminSession();
+  await requireProjectAccess(projectId, accessToken);
 
   if (!projectId || !leaderId) {
     throw new Error("Missing projectId or leaderId");
@@ -84,6 +87,7 @@ export async function resetParticipantSession(
   if (error) throw new Error(error.message);
 
   revalidatePath(`/admin/${projectId}/status`);
+  if (accessToken) revalidatePath(`/project/${accessToken}/status`);
 }
 
 /**
@@ -95,9 +99,10 @@ export async function resetParticipantSession(
  */
 export async function updateWorkshopDuration(
   projectId: string,
-  minutes: number
+  minutes: number,
+  accessToken?: string
 ) {
-  await requireAdminSession();
+  await requireProjectAccess(projectId, accessToken);
 
   if (!projectId) {
     throw new Error("Missing projectId");
@@ -114,6 +119,36 @@ export async function updateWorkshopDuration(
   if (error) throw new Error(error.message);
 
   revalidatePath(`/admin/${projectId}/results`);
+  if (accessToken) revalidatePath(`/project/${accessToken}/results`);
+}
+
+/**
+ * Admin-only, deliberately not dual-mode like the other project actions
+ * above: if a valid token could regenerate its own replacement, revocation
+ * would be meaningless - the consultant holding it could always mint
+ * themselves a fresh one before the real admin's new link ever mattered.
+ * Only requireAdminSession() gates this.
+ */
+export async function regenerateProjectAccessToken(
+  projectId: string
+): Promise<{ accessToken: string }> {
+  await requireAdminSession();
+
+  if (!projectId) {
+    throw new Error("Missing projectId");
+  }
+
+  const accessToken = randomBytes(32).toString("hex");
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("projects")
+    .update({ access_token: accessToken })
+    .eq("id", projectId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/${projectId}`);
+
+  return { accessToken };
 }
 
 type SaveProjectInput = {
@@ -131,9 +166,10 @@ type SaveProjectInput = {
 
 export async function saveProject(
   projectId: string,
-  input: SaveProjectInput
+  input: SaveProjectInput,
+  accessToken?: string
 ): Promise<{ leaders: Leader[] }> {
-  await requireAdminSession();
+  await requireProjectAccess(projectId, accessToken);
 
   if (
     input.framing_definitions.length < MIN_DIMENSIONS ||
@@ -202,15 +238,17 @@ export async function saveProject(
 
   revalidatePath(`/admin/${projectId}`);
   revalidatePath("/admin");
+  if (accessToken) revalidatePath(`/project/${accessToken}`);
 
   return { leaders: freshLeaders ?? [] };
 }
 
 export async function updateProjectStatus(
   projectId: string,
-  status: "draft" | "active" | "closed"
+  status: "draft" | "active" | "closed",
+  accessToken?: string
 ) {
-  await requireAdminSession();
+  await requireProjectAccess(projectId, accessToken);
 
   const supabase = createAdminClient();
   const { error } = await supabase
@@ -222,10 +260,14 @@ export async function updateProjectStatus(
   revalidatePath(`/admin/${projectId}`);
   revalidatePath(`/admin/${projectId}/status`);
   revalidatePath("/admin");
+  if (accessToken) {
+    revalidatePath(`/project/${accessToken}`);
+    revalidatePath(`/project/${accessToken}/status`);
+  }
 }
 
-export async function startProjectTimer(projectId: string) {
-  await requireAdminSession();
+export async function startProjectTimer(projectId: string, accessToken?: string) {
+  await requireProjectAccess(projectId, accessToken);
 
   const startedAt = new Date().toISOString();
   const supabase = createAdminClient();
@@ -238,10 +280,11 @@ export async function startProjectTimer(projectId: string) {
   await broadcastProjectTimerStarted(projectId, startedAt);
 
   revalidatePath(`/admin/${projectId}/status`);
+  if (accessToken) revalidatePath(`/project/${accessToken}/status`);
 }
 
-export async function generateSynthesis(projectId: string) {
-  await requireAdminSession();
+export async function generateSynthesis(projectId: string, accessToken?: string) {
+  await requireProjectAccess(projectId, accessToken);
 
   const supabase = createAdminClient();
 
@@ -490,4 +533,5 @@ export async function generateSynthesis(projectId: string) {
   }
 
   revalidatePath(`/admin/${projectId}/results`);
+  if (accessToken) revalidatePath(`/project/${accessToken}/results`);
 }

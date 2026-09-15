@@ -22,11 +22,14 @@ export default function PresenterView({
   projectId,
   projectName,
   synthesis,
+  accessToken,
 }: {
   projectId: string;
   projectName: string;
   synthesis: Synthesis;
+  accessToken?: string;
 }) {
+  const basePath = accessToken ? `/project/${accessToken}` : `/admin/${projectId}`;
   const screens: Screen[] = [
     { kind: "opening" },
     ...synthesis.content.dimensions.map(
@@ -91,7 +94,7 @@ export default function PresenterView({
     >
       <div className="flex items-center justify-between px-6 py-4">
         <Link
-          href={`/admin/${projectId}/results`}
+          href={`${basePath}/results`}
           className="text-sm"
           style={{ color: "var(--im-grey)" }}
         >

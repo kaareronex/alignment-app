@@ -15,6 +15,8 @@ export type Project = {
   timer_status: "not_started" | "running" | "ended";
   timer_started_at: string | null;
   created_at: string;
+  /** Capability token for /project/[accessToken] - full admin rights to this project only. */
+  access_token: string;
 };
 
 export type Leader = {

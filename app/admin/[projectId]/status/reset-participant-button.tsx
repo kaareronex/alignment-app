@@ -8,10 +8,12 @@ export default function ResetParticipantButton({
   projectId,
   leaderId,
   leaderName,
+  accessToken,
 }: {
   projectId: string;
   leaderId: string;
   leaderName: string;
+  accessToken?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -25,7 +27,7 @@ export default function ResetParticipantButton({
       return;
     }
     startTransition(async () => {
-      await resetParticipantSession(projectId, leaderId);
+      await resetParticipantSession(projectId, leaderId, accessToken);
       router.refresh();
     });
   }

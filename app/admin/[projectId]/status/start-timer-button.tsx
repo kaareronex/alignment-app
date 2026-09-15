@@ -6,15 +6,17 @@ import { startProjectTimer } from "../../actions";
 
 export default function StartTimerButton({
   projectId,
+  accessToken,
 }: {
   projectId: string;
+  accessToken?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {
     startTransition(async () => {
-      await startProjectTimer(projectId);
+      await startProjectTimer(projectId, accessToken);
       router.refresh();
     });
   }

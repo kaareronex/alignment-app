@@ -7,12 +7,15 @@ export default function SynthesisView({
   projectId,
   projectName,
   synthesis,
+  accessToken,
 }: {
   projectId: string;
   projectName: string;
   synthesis: Synthesis;
+  accessToken?: string;
 }) {
   const generatedAt = new Date(synthesis.generated_at).toLocaleString("en-GB");
+  const basePath = accessToken ? `/project/${accessToken}` : `/admin/${projectId}`;
 
   return (
     <div className="space-y-8">
@@ -26,7 +29,7 @@ export default function SynthesisView({
           {synthesis.content.sessionCount === 1 ? "" : "s"}.
         </span>
         <div className="flex items-center gap-2">
-          <Link href={`/admin/${projectId}/results/present`} className="btn-secondary">
+          <Link href={`${basePath}/results/present`} className="btn-secondary">
             Facilitator view
           </Link>
           <ExportMarkdownButton projectName={projectName} synthesis={synthesis} />

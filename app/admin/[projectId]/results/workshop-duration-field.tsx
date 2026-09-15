@@ -7,9 +7,11 @@ import { updateWorkshopDuration } from "../../actions";
 export default function WorkshopDurationField({
   projectId,
   initialMinutes,
+  accessToken,
 }: {
   projectId: string;
   initialMinutes: number;
+  accessToken?: string;
 }) {
   const router = useRouter();
   const [minutes, setMinutes] = useState(initialMinutes);
@@ -21,7 +23,7 @@ export default function WorkshopDurationField({
     setError(null);
     startTransition(async () => {
       try {
-        await updateWorkshopDuration(projectId, minutes);
+        await updateWorkshopDuration(projectId, minutes, accessToken);
         setSaved(true);
         router.refresh();
         setTimeout(() => setSaved(false), 2000);

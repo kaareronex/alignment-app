@@ -10,15 +10,19 @@ import {
 } from "../framing-defaults";
 import type { Leader, Project } from "../types";
 import ShareableLinkCard from "./shareable-link-card";
+import ConsultantAccessLinkCard from "./consultant-access-link-card";
 
 type LeaderRow = { id: string | null; name: string; role_label: string };
 
 export default function ProjectEditForm({
   project,
   leaders,
+  accessToken,
 }: {
   project: Project;
   leaders: Leader[];
+  /** Set when reached via /project/[accessToken] - omitted on the real /admin surface. */
+  accessToken?: string;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -119,7 +123,7 @@ export default function ProjectEditForm({
           time_limit_minutes: timeLimitMinutes,
           leaders: leaderRows,
           removedLeaderIds,
-        });
+        }, accessToken);
         setLeaderRows(
           result.leaders.map((l) => ({
             id: l.id,
@@ -342,6 +346,12 @@ export default function ProjectEditForm({
       </div>
 
       <ShareableLinkCard projectId={project.id} />
+      {!accessToken && (
+        <ConsultantAccessLinkCard
+          projectId={project.id}
+          accessToken={project.access_token}
+        />
+      )}
 
       {error && (
         <p className="text-sm" style={{ color: "var(--im-deep-red, #451f23)" }}>
