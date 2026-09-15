@@ -103,20 +103,42 @@ itself.
   "framing dimensions" for what these actually are. A segmented progress
   bar on the session page fills as themes get touched on, without ever
   showing participants a question count or countdown.
+- **Synthesis generation, results, and export**
+  (`lib/ai/synthesis-model.ts` + `app/admin/actions.ts`): aggregates a
+  project's completed sessions into per-theme narrative, key point, and a
+  3-level alignment indicator (`consensus`/`partial`/`divided`, hidden
+  below 3 completed sessions), cross-cutting top priorities, and a
+  facilitator workshop plan. Anonymity is enforced deterministically by the
+  caller before the model ever sees a transcript - a `role_label` unique to
+  one participant in the run is collapsed to a generic tag first, and the
+  model only ever sees opaque participant refs, never names.
+  `/admin/[projectId]/results` renders it with a
+  "Regenerate" button (always fully overwrites, never merges) and an
+  "Export as markdown" download; a `hasCurrentShapeSynthesis` guard
+  (`app/admin/[projectId]/results/synthesis-shape.ts`) treats an
+  old-shaped stored row (from before a later content change) as stale
+  rather than rendering it half-formed.
+- **Facilitator presentation view** (`/admin/[projectId]/results/present`):
+  a separate, room-legible screen for running the workshop itself off a
+  projector - one theme per screen (name, key point, alignment indicator
+  only; the fuller narrative and anonymised participant paraphrases stay
+  hidden until the facilitator explicitly reveals them, and re-hide again
+  on revisiting a screen), plus an opening screen (top priorities) and a
+  closing screen (the workshop plan's opening framing). Arrow-key/on-screen
+  navigation, a small position indicator, admin chrome hidden behind a
+  fixed full-viewport overlay (Next.js layouts can't be opted out of by a
+  nested route, so `app/admin/layout.tsx`'s header/nav is covered, not
+  removed from the tree). Reached from a "Facilitator view" button next to
+  "Export as markdown", shown only when a current-shape synthesis exists.
+- **Live participant-progress view** on `/admin/[projectId]/status`: each
+  participant's session status (not started/in progress/completed)
+  alongside a "Reset" action for anyone who's actually started - a full
+  destructive restart (deletes the session row, not just its status, so
+  messages cascade-delete too) so the same shared link lets them begin
+  completely fresh, confirmed before it fires since it's irreversible.
 
 ### Not yet built
 
-- **Synthesis generation** — aggregating a project's participant responses
-  into the themed output (`uenigheder`/`konsensus`/etc. per the original
-  plan). Nothing exists for this yet: no prompt, no server action, no
-  `synthesis` row ever gets written.
-- **`/admin/[projectId]/results` page** — viewing the synthesis once it
-  exists.
-- **Export** — markdown/text download of the results.
-- **Live participant-progress view** on `/admin/[projectId]/status` — the
-  original plan called for seeing which participants are in progress/done
-  and how many questions each has reached; only the lobby timer control
-  exists there today.
 - Root route `/` is still the unmodified `create-next-app` scaffold.
 - Not deployed anywhere — everything so far has been run and tested via
   local `next dev`.

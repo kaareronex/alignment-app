@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import type { Synthesis } from "../../types";
 import GenerateSynthesisButton from "./generate-synthesis-button";
 import SynthesisView from "./synthesis-view";
+import { hasCurrentShapeSynthesis } from "./synthesis-shape";
 
 export const dynamic = "force-dynamic";
 
@@ -38,22 +39,9 @@ export default async function ProjectResultsPage({
   if (countError) throw new Error(countError.message);
   if (!project) notFound();
 
-  // A synthesis row generated before a content-shape change (workshop plan,
-  // then alignment/basis) has an old-shaped content blob - since synthesis
-  // is always fully overwritten (never migrated in place), treat it as
-  // stale rather than render a half-formed page. The "Regenerate" button
-  // still shows, since a row does exist.
-  const dimensions = (synthesis?.content as { dimensions?: unknown })?.dimensions;
-  const hasCurrentShapeSynthesis =
-    !!synthesis &&
-    Array.isArray((synthesis.content as { topPriorities?: unknown })?.topPriorities) &&
-    !!(synthesis.content as { workshopPlan?: unknown })?.workshopPlan &&
-    Array.isArray(dimensions) &&
-    dimensions.every(
-      (d) =>
-        typeof (d as { keyPoint?: unknown }).keyPoint === "string" &&
-        Array.isArray((d as { participantBases?: unknown }).participantBases)
-    );
+  // The "Regenerate" button still shows even for a stale-shaped row, since a
+  // row does exist.
+  const isCurrentShape = hasCurrentShapeSynthesis(synthesis?.content);
 
   return (
     <div className="space-y-6">
@@ -77,8 +65,9 @@ export default async function ProjectResultsPage({
         {(completedCount ?? 0) === 1 ? "" : "s"} available for synthesis.
       </p>
 
-      {hasCurrentShapeSynthesis ? (
+      {isCurrentShape ? (
         <SynthesisView
+          projectId={projectId}
           projectName={project.name}
           synthesis={synthesis as unknown as Synthesis}
         />

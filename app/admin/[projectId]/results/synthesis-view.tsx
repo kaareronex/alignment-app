@@ -1,22 +1,14 @@
-import type { Synthesis, SynthesisAlignmentLevel } from "../../types";
+import Link from "next/link";
+import type { Synthesis } from "../../types";
 import ExportMarkdownButton from "./export-markdown-button";
-
-const ALIGNMENT_LABELS: Record<SynthesisAlignmentLevel, string> = {
-  consensus: "Consensus",
-  partial: "Partial",
-  divided: "Divided",
-};
-
-const ALIGNMENT_COLORS: Record<SynthesisAlignmentLevel, string> = {
-  consensus: "var(--im-blue-green)",
-  partial: "var(--im-yellow, #e4b73c)",
-  divided: "var(--im-deep-red, #451f23)",
-};
+import { ALIGNMENT_LABELS, ALIGNMENT_COLORS } from "./alignment-display";
 
 export default function SynthesisView({
+  projectId,
   projectName,
   synthesis,
 }: {
+  projectId: string;
   projectName: string;
   synthesis: Synthesis;
 }) {
@@ -33,7 +25,12 @@ export default function SynthesisView({
           completed session
           {synthesis.content.sessionCount === 1 ? "" : "s"}.
         </span>
-        <ExportMarkdownButton projectName={projectName} synthesis={synthesis} />
+        <div className="flex items-center gap-2">
+          <Link href={`/admin/${projectId}/results/present`} className="btn-secondary">
+            Facilitator view
+          </Link>
+          <ExportMarkdownButton projectName={projectName} synthesis={synthesis} />
+        </div>
       </div>
 
       <section className="im-card space-y-2">
