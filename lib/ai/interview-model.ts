@@ -5,7 +5,7 @@ import type { Responses } from "openai/resources/responses/responses";
 import { createOpenAIClient } from "./openai-client";
 
 /**
- * ACTIVE provider: Implement's internal Azure OpenAI-compatible gateway (see
+ * ACTIVE provider: an OpenAI-compatible gateway (see
  * lib/ai/openai-client.ts), migrated from direct Anthropic. This is the only
  * file in the app that talks to the model provider directly for the
  * interview side - everything else calls getNextInterviewTurn(). The

@@ -2,11 +2,11 @@ import "server-only";
 import OpenAI from "openai";
 
 /**
- * Implement's internal Azure APIM gateway, not a direct OpenAI account -
- * this is an OpenAI-compatible `/v1` surface fronted by APIM, not Azure
- * OpenAI Service's own `/openai/deployments/{id}?api-version=...` shape.
- * See CLAUDE.md for the key's expiry/budget - both are meaningfully
- * tighter than the previous direct Anthropic setup and worth watching.
+ * The currently configured model endpoint: an Azure APIM gateway exposing an
+ * OpenAI-compatible `/v1` surface (not a direct OpenAI account, and not Azure
+ * OpenAI Service's own `/openai/deployments/{id}?api-version=...` shape).
+ * Pointing this at a different OpenAI-compatible provider means changing
+ * BASE_URL and the auth header below; see docs/ARCHITECTURE.md.
  */
 const BASE_URL = "https://apim-key-access-imgpt-prod.azure-api.net/openai/v1/";
 

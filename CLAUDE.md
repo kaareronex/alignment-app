@@ -2,8 +2,7 @@
 
 ## What this is
 
-An **alignment interview app** built in a Danish management-consulting
-context (Implement Consulting Group). Participants — leaders and other
+**Groundwork**: an alignment interview app. Participants — leaders and other
 stakeholder groups — are interviewed individually by an AI interviewer, and
 their responses are synthesised to surface where a team is — and is not —
 aligned.
@@ -15,9 +14,9 @@ aligned.
 - **Linting:** ESLint (`eslint-config-next`)
 - **Database:** Supabase (Postgres + RLS)
 - **Hosting:** Vercel (not yet deployed there — local dev only so far)
-- **AI:** Implement's internal Azure APIM gateway (an OpenAI-compatible
-  `/v1` surface, not a direct OpenAI account and not Azure OpenAI Service's
-  own API shape), via the OpenAI SDK. `lib/ai/interview-model.ts` (model:
+- **AI:** an Azure APIM gateway exposing an OpenAI-compatible `/v1` surface
+  (not a direct OpenAI account and not Azure OpenAI Service's own API
+  shape), via the OpenAI SDK. `lib/ai/interview-model.ts` (model:
   `gpt-5.6-terra`, balanced speed/cost for a latency-sensitive live
   conversation) and `lib/ai/synthesis-model.ts` (model: `gpt-5.6-sol`, the
   flagship tier - runs once per project, not once per exchange, so it can
@@ -29,10 +28,7 @@ aligned.
   Anthropic** (previously `claude-sonnet-5` / `claude-opus-4-8`); the
   pre-migration Anthropic implementations are kept, dormant and unimported,
   as `lib/ai/interview-model.anthropic.ts` / `synthesis-model.anthropic.ts`
-  for rollback. The gateway key (`OPENAI_API_KEY`) **expires 2026-12-13**
-  and has a **$100/month budget** - both meaningfully smaller and more
-  time-bound than the previous Anthropic setup, worth checking before they
-  become a problem.
+  for rollback.
 
 ## Access model
 

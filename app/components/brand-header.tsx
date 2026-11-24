@@ -1,8 +1,7 @@
 /**
- * Groundwork wordmark + Implement logo, shared by the admin and
- * participant-facing shells. "dark" is the Anthracite admin header (white
- * logo badge); "light" is the participant-facing pages (black logo on
- * transparent).
+ * Plain-text Groundwork wordmark, shared by the admin and participant-facing
+ * shells. "dark" is the dark admin header; "light" is the participant-facing
+ * pages (dark text on a white bar).
  */
 export default function BrandHeader({
   variant,
@@ -17,7 +16,7 @@ export default function BrandHeader({
         backgroundColor: isDark ? "var(--im-black)" : "var(--im-white)",
         borderBottom: isDark ? "none" : "1px solid var(--im-blue-green-light)",
       }}
-      className="flex items-center justify-between px-6 py-4 sm:px-8"
+      className="flex items-center px-6 py-4 sm:px-8"
     >
       <span
         className="im-brand-wordmark"
@@ -25,11 +24,6 @@ export default function BrandHeader({
       >
         Groundwork
       </span>
-      <img
-        src={isDark ? "/brand/logo_full_white.png" : "/brand/logo_full_black.png"}
-        alt="Implement Consulting Group"
-        style={{ height: "26px", width: "auto" }}
-      />
     </header>
   );
 }

@@ -5,7 +5,7 @@ import { createOpenAIClient } from "./openai-client";
 import type { FramingDimension } from "./interview-model";
 
 /**
- * ACTIVE provider: Implement's internal Azure OpenAI-compatible gateway (see
+ * ACTIVE provider: an OpenAI-compatible gateway (see
  * lib/ai/openai-client.ts), migrated from direct Anthropic. Synthesis
  * generation is the second (and only other) place this app talks to a model
  * provider directly, alongside lib/ai/interview-model.ts. Kept in its own
@@ -38,9 +38,9 @@ const MODEL = "gpt-5.6-sol";
 // synthesis itself, so this is well above the interview model's ceiling.
 const MAX_OUTPUT_TOKENS = 32768;
 // High, not the maximum "max" tier: this needs genuinely strong reasoning
-// (nuanced synthesis, anonymity-preserving aggregation) but runs against a
-// deliberately small monthly budget (see CLAUDE.md) and only once per
-// project, so paying for the very top reasoning tier isn't worth it here.
+// (nuanced synthesis, anonymity-preserving aggregation) but runs once per
+// project and is cost-sensitive, so paying for the very top reasoning tier
+// isn't worth it here.
 const REASONING_EFFORT = "high";
 
 export type SynthesisMessageInput = {
